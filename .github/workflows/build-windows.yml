@@ -34,9 +34,15 @@ jobs:
             mingw-w64-ucrt-x86_64-pyinstaller
             gettext
             diffutils
+            git
       - name: Record versions and exact package hashes
         run: |
           mkdir -p build-evidence
+          python -c 'import subprocess; subprocess.run(["git", "--version"], check=True)' > build-evidence/native-python-git-version.txt
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git status --porcelain --untracked-files=all > build-evidence/source-status-before-build.txt
+          test ! -s build-evidence/source-status-before-build.txt
+          python win/msix/test_source_checkout.py -v
           pacman -Q > build-evidence/msys2-installed-packages.txt
           pacman -Qi > build-evidence/msys2-package-metadata.txt
           pacman -Ql > build-evidence/msys2-package-files.txt

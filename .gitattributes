@@ -1,2 +1,4 @@
+# Keep checkout bytes consistent between Git for Windows and MSYS Git.
+* text=auto eol=lf
 
 win/record-msys2-inputs.sh text eol=lf

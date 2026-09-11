@@ -256,3 +256,15 @@ as do Black100 and diff checks. Local tests exercise real POSIX notice rejection
 and Windows command construction; the repaired Windows notice fixture still
 requires a fresh native run. Failed-job log SHA256:
 `a7c375c099a9c4dd36a177a57b2b06a9c8799160f95c79ad7b7408d0807e2d0d`.
+
+### Native Git input
+
+Run 34617485484 passed both junction suites and the native application build,
+then failed before stage collection because MSYS2's native Python could not
+launch Git. Git is now an explicit MSYS2 build input, recorded with the rest of
+the installed packages. Before building, the workflow executes Git through that
+same Python, checks the current commit and requires a clean checkout. Tracked
+text uses LF under both Git for Windows and MSYS Git; binary bytes are unchanged.
+A real clone regression proves stable bytes/clean status under both defaults and
+continued rejection of actual source and binary changes. Native confirmation
+and downstream startup/MSIX execution still require a fresh run.
