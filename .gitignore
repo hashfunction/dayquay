@@ -15,3 +15,6 @@ debian/rednotebook.postinst.debhelper
 debian/rednotebook.prerm.debhelper
 debian/rednotebook.substvars
 test-translations/
+
+# Disposable qualification evidence and cached native inputs (metadata uploaded by CI).
+build-evidence/

@@ -39,6 +39,7 @@ jobs:
           mkdir -p build-evidence
           pacman -Q > build-evidence/msys2-installed-packages.txt
           pacman -Qi > build-evidence/msys2-package-metadata.txt
+          pacman -Ql > build-evidence/msys2-package-files.txt
           bash win/record-msys2-inputs.sh
           python --version > build-evidence/python-version.txt
       - name: Install pinned pure Python Enchant binding
@@ -52,12 +53,31 @@ jobs:
         run: python win/dayquay-runtime-probe.py
       - name: Test native-backed application workflows
         run: python -m pytest tests -q --junitxml=build-evidence/baseline-tests.xml
+      - name: Test strict package and native notice boundaries
+        run: |
+          python win/msix/test_msix_qualification.py -v
+          python win/msix/test_native_notices.py -v
+      - name: Test qualification ownership and failure evidence
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $powerShell=(Get-Process -Id $PID).Path
+          foreach ($fixture in @('test_qualify_msix_install.ps1','test_msix_evidence.ps1','test_registration_ownership.ps1','test_process_observation.ps1','test_window_evidence.ps1','test_defender_module.ps1','test_temporary_ownership.ps1')) {
+            & $powerShell -NoLogo -NoProfile -File (Join-Path 'win/msix' $fixture)
+            if ($LASTEXITCODE -ne 0) { throw "Qualification fixture failed: $fixture" }
+          }
       - name: Build native application directory
         run: |
           MINGW_PREFIX="$(cygpath -m "$MINGW_PREFIX")" python -m PyInstaller --clean --noconfirm win/rednotebook.spec
+      - name: Preserve native notices and bind complete application stage
+        run: python win/record-package-inventory.py
       - name: Verify packaged native main window
         shell: pwsh
         run: ./win/test-native-startup.ps1
+      - name: Qualify disposable MSIX package, identity, GTK startup and owned cleanup
+        shell: pwsh
+        timeout-minutes: 10
+        run: ./win/msix/qualify-msix.ps1
       - name: Preserve qualification metadata only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -67,5 +87,8 @@ jobs:
             build-evidence/*.json
             build-evidence/*.txt
             build-evidence/*.xml
+            build-evidence/msix-install/*.json
+            build-evidence/msix-install/*.txt
+            build-evidence/msix-install/*.png
           retention-days: 14
           if-no-files-found: error
