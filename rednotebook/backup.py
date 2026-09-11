@@ -49,9 +49,58 @@ class BackupResult:
 
 
 @dataclass(frozen=True)
+class BackupFileIdentity:
+    device: int
+    inode: int
+    size: int
+    sha256: str
+
+
+@dataclass(frozen=True)
 class BackupSelection:
     path: str
     overwrite: bool = False
+    approved_identity: BackupFileIdentity = None
+
+
+def _capture_file_identity(path):
+    """Capture a stable identity and content digest for a regular file."""
+    path = Path(path)
+    flags = os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise InvalidBackupSource(f'Backup destination cannot be inspected: "{path}"') from exc
+    digest = hashlib.sha256()
+    try:
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise InvalidBackupSource(f'Backup destination is not a regular file: "{path}"')
+        with os.fdopen(descriptor, "rb") as stream:
+            descriptor = None
+            while chunk := stream.read(COPY_CHUNK_SIZE):
+                digest.update(chunk)
+            after = os.fstat(stream.fileno())
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+    stable_fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns")
+    if any(getattr(before, field) != getattr(after, field) for field in stable_fields):
+        raise InvalidBackupSource(f'Backup destination changed while inspected: "{path}"')
+    try:
+        current = path.stat(follow_symlinks=False)
+    except OSError as exc:
+        raise InvalidBackupSource(f'Backup destination changed while inspected: "{path}"') from exc
+    if stat.S_ISLNK(current.st_mode) or any(
+        getattr(after, field) != getattr(current, field) for field in stable_fields
+    ):
+        raise InvalidBackupSource(f'Backup destination changed while inspected: "{path}"')
+    return BackupFileIdentity(
+        device=after.st_dev,
+        inode=after.st_ino,
+        size=after.st_size,
+        sha256=digest.hexdigest(),
+    )
 
 
 def _source_entries(files, base_dir, arc_base_dir=""):
@@ -118,7 +167,7 @@ def build_manifest(data_dir, files):
 def _publish_no_replace(staged, destination):
     """Atomically publish a sibling file while preserving any existing destination."""
     try:
-        os.link(staged, destination)
+        os.link(staged, destination, follow_symlinks=False)
     except FileExistsError:
         raise
     except OSError as exc:
@@ -126,8 +175,69 @@ def _publish_no_replace(staged, destination):
     os.unlink(staged)
 
 
+def _publish_approved_replace(staged, destination, approved_identity):
+    """Replace only the exact file moved atomically out of the destination path."""
+    if approved_identity is None:
+        raise InvalidBackupSource("Overwrite approval is missing the selected file identity")
+    descriptor, displaced_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.approved-", suffix=".tmp", dir=destination.parent
+    )
+    os.close(descriptor)
+    displaced = Path(displaced_name)
+    moved = False
+    try:
+        try:
+            os.replace(destination, displaced)
+            moved = True
+        except OSError as exc:
+            raise InvalidBackupSource(
+                f'Approved backup destination changed before publication: "{destination}"'
+            ) from exc
+        try:
+            actual_identity = _capture_file_identity(displaced)
+        except InvalidBackupSource as exc:
+            actual_identity = None
+            identity_error = exc
+        else:
+            identity_error = None
+        if actual_identity != approved_identity:
+            try:
+                _publish_no_replace(displaced, destination)
+                moved = False
+            except FileExistsError as exc:
+                raise InvalidBackupSource(
+                    "Approved backup destination was replaced; the displaced file is retained "
+                    f'at "{displaced}"'
+                ) from exc
+            raise InvalidBackupSource(
+                f'Approved backup destination was replaced: "{destination}"'
+            ) from identity_error
+        try:
+            _publish_no_replace(staged, destination)
+        except FileExistsError as exc:
+            raise InvalidBackupSource(
+                "Backup destination reappeared during publication; the approved original is "
+                f'retained at "{displaced}"'
+            ) from exc
+        moved = False
+    finally:
+        if not moved:
+            try:
+                displaced.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError as exc:
+                logging.warning("Could not remove displaced backup %s: %s", displaced, exc)
+
+
 def write_archive(
-    archive_file_name, files, base_dir="", arc_base_dir="", *, overwrite=False
+    archive_file_name,
+    files,
+    base_dir="",
+    arc_base_dir="",
+    *,
+    overwrite=False,
+    approved_identity=None,
 ):
     """Write a portable archive and publish it after full integrity verification."""
     from rednotebook import restore
@@ -179,7 +289,7 @@ def write_archive(
         except restore.InvalidBackup as exc:
             raise InvalidBackupSource(f"Portable backup validation failed: {exc}") from exc
         if overwrite:
-            os.replace(staged, destination)
+            _publish_approved_replace(staged, destination, approved_identity)
         else:
             _publish_no_replace(staged, destination)
         return BackupResult(
@@ -257,6 +367,7 @@ class Archiver:
                 archive_files,
                 data_dir,
                 overwrite=selection.overwrite,
+                approved_identity=selection.approved_identity,
             )
         except (FileExistsError, InvalidBackupSource, OSError) as err:
             self.journal.show_message(
@@ -313,7 +424,17 @@ class Archiver:
         if response == Gtk.ResponseType.OK:
             path = backup_dialog.get_filename()
             overwrite = False
+            approved_identity = None
             if os.path.exists(path):
+                try:
+                    approved_identity = _capture_file_identity(path)
+                except InvalidBackupSource as err:
+                    self.journal.show_message(
+                        _("The existing backup cannot be safely replaced: %s") % err,
+                        title=_("Backup failed"),
+                        error=True,
+                    )
+                    return None
                 dialog = Gtk.MessageDialog(
                     transient_for=self.journal.frame.main_frame,
                     modal=True,
@@ -330,4 +451,8 @@ class Archiver:
                 dialog.destroy()
                 if not overwrite:
                     return None
-            return BackupSelection(path=path, overwrite=overwrite)
+            return BackupSelection(
+                path=path,
+                overwrite=overwrite,
+                approved_identity=approved_identity,
+            )

@@ -54,7 +54,7 @@ The journal argument can be one of the following:
  - The name of a directory under the DayQuay profile
 
 If omitted, DayQuay uses the last journal. A first launch defaults to the
-product-owned data directory (%APPDATA%\\DayQuay\\data on Windows).
+product-owned data directory (%%APPDATA%%\\DayQuay\\data on Windows).
 """
 
 

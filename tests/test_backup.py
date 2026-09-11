@@ -104,14 +104,25 @@ def test_backup_overwrite_requires_explicit_argument(tmp_path):
     source.write_bytes(new_journal)
     output = tmp_path / "backup.zip"
     output.write_bytes(b"old archive")
+    approved_identity = backup._capture_file_identity(output)
 
     with pytest.raises(FileExistsError):
         backup.write_archive(output, [source], base_dir=journal)
-    result = backup.write_archive(output, [source], base_dir=journal, overwrite=True)
+    with pytest.raises(backup.InvalidBackupSource, match="selected file identity"):
+        backup.write_archive(output, [source], base_dir=journal, overwrite=True)
+    assert output.read_bytes() == b"old archive"
+    result = backup.write_archive(
+        output,
+        [source],
+        base_dir=journal,
+        overwrite=True,
+        approved_identity=approved_identity,
+    )
 
     assert result.file_count == 1
     with zipfile.ZipFile(output) as archive:
         assert archive.read("2026-09.txt") == new_journal
+    assert not list(tmp_path.glob(".backup.zip.approved-*.tmp"))
 
 
 def test_backup_overwrite_never_follows_destination_symlink(tmp_path):
@@ -213,6 +224,46 @@ def test_archiver_does_not_authorize_destination_created_after_selection(
     assert result is False
     assert output.read_bytes() == b"CREATED_BY_OTHER_PROCESS"
     assert "lastBackupDate" not in journal.config
+
+
+def test_archiver_rejects_replacement_after_overwrite_approval(tmp_path, monkeypatch):
+    journal_dir = tmp_path / "journal"
+    journal_dir.mkdir()
+    (journal_dir / "2026-09.txt").write_bytes(valid_month())
+    output = tmp_path / "approved-existing.zip"
+    output.write_bytes(b"USER_APPROVED_OLD_BACKUP")
+    approved_identity = backup._capture_file_identity(output)
+
+    class Config(dict):
+        def read(self, key, default=None):
+            return self.get(key, default)
+
+    class Journal:
+        title = "data"
+        config = Config()
+        dirs = type("Dirs", (), {"data_dir": str(journal_dir)})()
+
+        def save_to_disk(self):
+            replacement = tmp_path / "replacement.tmp"
+            replacement.write_bytes(b"UNAPPROVED_REPLACEMENT")
+            os.replace(replacement, output)
+
+        def show_message(self, message, **kwargs):
+            self.message = message
+
+    journal = Journal()
+    archiver = backup.Archiver(journal)
+    selection = backup.BackupSelection(
+        path=str(output), overwrite=True, approved_identity=approved_identity
+    )
+    monkeypatch.setattr(archiver, "_get_backup_file", lambda: selection)
+
+    result = archiver.backup()
+
+    assert result is False
+    assert output.read_bytes() == b"UNAPPROVED_REPLACEMENT"
+    assert "lastBackupDate" not in journal.config
+    assert not list(tmp_path.glob(".approved-existing.zip.approved-*.tmp"))
 
 
 def test_highly_compressible_backup_round_trips_through_default_inspector(tmp_path):

@@ -22,7 +22,7 @@ import re
 
 from rednotebook.data import HASHTAG
 from rednotebook.external import txt2tags
-from rednotebook.util import filesystem, urls
+from rednotebook.util import filesystem, links, urls
 
 
 # Linebreaks are only allowed at line ends
@@ -30,13 +30,13 @@ REGEX_LINEBREAK = r"\\\\[\s]*$"
 REGEX_HTML_LINK = r"<a.*?>(.*?)</a>"
 
 # pic [""/home/user/Desktop/RedNotebook pic"".png]
-PIC_NAME = r"\S.*?\S|\S"
-PIC_EXT = r"(?:png|jpe?g|gif|eps|bmp|svg)"
-REGEX_PIC = re.compile(rf'(\["")({PIC_NAME})("")(\.{PIC_EXT})(\?\d+)?(\])', flags=re.I)
+PIC_NAME = links.PIC_NAME
+PIC_EXT = links.PIC_EXT
+REGEX_PIC = links.REGEX_PIC
 
 # named local link [my file.txt ""file:///home/user/my file.txt""]
 # named link in web [heise ""http://heise.de""]
-REGEX_NAMED_LINK = re.compile(r'(\[)(.*?)(\s"")(\S.*?\S)(""\])', flags=re.I)
+REGEX_NAMED_LINK = links.REGEX_NAMED_LINK
 
 ESCAPE_COLOR = r"XBEGINCOLORX\1XSEPARATORX\2XENDCOLORX"
 COLOR_ESCAPED = r"XBEGINCOLORX(.*?)XSEPARATORX(.*?)XENDCOLORX"

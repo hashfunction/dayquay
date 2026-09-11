@@ -13,16 +13,13 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from rednotebook import atomic, backup, storage
+from rednotebook.util import links
 
 
 MANIFEST_MAX_BYTES = 8 * 1024 * 1024
 COPY_CHUNK_SIZE = 1024 * 1024
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 WINDOWS_DRIVE_PATTERN = re.compile(r"^[A-Za-z]:")
-QUOTED_LOCAL_TARGET_PATTERN = re.compile(
-    r'""(?P<target>[^"\r\n]+?)""(?P<extension>\.(?:png|jpe?g|gif|eps|bmp|svg))?',
-    flags=re.IGNORECASE,
-)
 WINDOWS_RESERVED_NAMES = {
     "CON",
     "PRN",
@@ -234,10 +231,7 @@ def inspect_backup(path, limits=DEFAULT_LIMITS, *, verify_hashes=True):
 
 
 def _local_attachment_targets(text):
-    for match in QUOTED_LOCAL_TARGET_PATTERN.finditer(text):
-        target = match.group("target")
-        if extension := match.group("extension"):
-            target += extension
+    for target in links.iter_reference_targets(text):
         lowered = target.lower()
         if lowered.startswith(("http://", "https://", "ftp://", "irc://")):
             continue

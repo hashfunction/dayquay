@@ -254,3 +254,31 @@ def test_validation_counts_existing_referenced_attachment(tmp_path):
 
     assert validation.attachment_count == 1
     assert validation.referenced_attachment_count == 1
+
+
+def test_validation_ignores_ordinary_double_quoted_prose(tmp_path):
+    journal = tmp_path / "journal"
+    journal.mkdir()
+    text = 'This is ordinary quoted prose: ""hello"".'
+    (journal / "2026-09.txt").write_text(
+        yaml.safe_dump({1: {"text": text}}), encoding="utf-8"
+    )
+
+    validation = restore.validate_journal_directory(journal)
+    archive = tmp_path / "quoted-prose.zip"
+    result = backup.write_archive(archive, [journal / "2026-09.txt"], base_dir=journal)
+
+    assert validation.referenced_attachment_count == 0
+    assert restore.inspect_backup(archive).file_count == result.file_count == 1
+
+
+def test_validation_rejects_external_image_markup(tmp_path):
+    journal = tmp_path / "journal"
+    journal.mkdir()
+    text = '[""file:///C:/Users/person/Pictures/holiday"".png?400]'
+    (journal / "2026-09.txt").write_text(
+        yaml.safe_dump({1: {"text": text}}), encoding="utf-8"
+    )
+
+    with pytest.raises(restore.InvalidBackup, match="external.*not portable"):
+        restore.validate_journal_directory(journal)
