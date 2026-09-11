@@ -1,0 +1,17 @@
+*.py[cod]
+MANIFEST
+build/
+dist/
+po/*.mo
+.cache/
+.pc/
+.pybuild/
+.tox/
+rednotebook.egg-info
+debian/rednotebook/
+debian/debhelper-build-stamp
+debian/files
+debian/rednotebook.postinst.debhelper
+debian/rednotebook.prerm.debhelper
+debian/rednotebook.substvars
+test-translations/

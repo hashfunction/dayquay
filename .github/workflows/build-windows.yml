@@ -1,0 +1,56 @@
+name: DayQuay native dependency qualification
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/dayquay]
+permissions:
+  contents: read
+jobs:
+  windows-ucrt64:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install version-recorded qualification inputs
+        uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-python
+            mingw-w64-ucrt-x86_64-python-gobject
+            mingw-w64-ucrt-x86_64-python-cairo
+            mingw-w64-ucrt-x86_64-gtk3
+            mingw-w64-ucrt-x86_64-gtksourceview4
+            mingw-w64-ucrt-x86_64-enchant
+            mingw-w64-ucrt-x86_64-hunspell-en
+            mingw-w64-ucrt-x86_64-python-yaml
+            mingw-w64-ucrt-x86_64-python-pytest
+            mingw-w64-ucrt-x86_64-python-pip
+            mingw-w64-ucrt-x86_64-python-setuptools
+            mingw-w64-ucrt-x86_64-pyinstaller
+            gettext
+      - name: Record versions and exact package hashes
+        run: |
+          mkdir -p build-evidence
+          pacman -Q > build-evidence/msys2-installed-packages.txt
+          pacman -Qi > build-evidence/msys2-package-metadata.txt
+          sha256sum /var/cache/pacman/pkg/*.pkg.tar.* > build-evidence/msys2-cache-sha256.txt
+          python --version > build-evidence/python-version.txt
+      - name: Install pinned pure Python Enchant binding
+        run: python -m pip install --no-deps --no-build-isolation --no-binary=:all: --require-hashes -r win/pyenchant-source-lock.txt
+      - name: Verify real GTK3, GtkSource4 and spellcheck runtime
+        run: python win/dayquay-runtime-probe.py
+      - name: Test upstream baseline before feature implementation
+        run: python -m pytest tests -q --junitxml=build-evidence/baseline-tests.xml
+      - name: Preserve private qualification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: DayQuay-native-qualification
+          path: build-evidence/
+          retention-days: 14
+          if-no-files-found: error

@@ -1,0 +1,24 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+# Uncomment the line below to turn on debhelper verbose mode.
+#export DH_VERBOSE=1
+
+export PYBUILD_NAME = rednotebook
+
+%:
+	dh $@ --buildsystem=pybuild
+
+override_dh_auto_install:
+	# install into a private directory
+	python3 setup.py install --root=$(CURDIR)/debian/rednotebook \
+		--install-lib=/usr/share/rednotebook \
+		--install-scripts=/usr/bin \
+		--install-data=/usr
+	# "--install-scripts=/usr/share/rednotebook" will not work here
+	# as binary name is the same as module name
+	mv $(CURDIR)/debian/rednotebook/usr/bin/rednotebook \
+		$(CURDIR)/debian/rednotebook/usr/share/rednotebook/run.py
+
+override_dh_auto_test:
+	echo "Skipping tests"
