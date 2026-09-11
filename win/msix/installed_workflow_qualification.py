@@ -17,6 +17,7 @@ import zipfile
 MANIFEST_NAME = "dayquay-manifest.json"
 MONTH_NAME = re.compile(r"^[0-9]{4}-[0-9]{2}\.txt$")
 RESTORE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+JOURNAL_DIRECTORY_CHOOSER_TITLE = "Select a directory"
 
 
 def _sha256(data):
@@ -599,16 +600,14 @@ class _WindowsInput:
     def reopen_journal(self, path, transition_path, transition_title, return_title):
         self._main()
         self.chord("CTRL", "N")
-        self._select_path(
-            "Select an empty folder for your new journal", transition_path, "O"
-        )
+        self._select_path(JOURNAL_DIRECTORY_CHOOSER_TITLE, transition_path, "O")
         self._wait_window(transition_title)
         self._assert_owned(self.main_hwnd, transition_title)
         self.current_title = transition_title
 
         self._main()
         self.chord("CTRL", "O")
-        self._select_path("Select an existing journal directory", path, "O")
+        self._select_path(JOURNAL_DIRECTORY_CHOOSER_TITLE, path, "O")
         self._wait_window(return_title)
         self._assert_owned(self.main_hwnd, return_title)
         self.current_title = return_title

@@ -1,5 +1,6 @@
 """Installed consumer journal/backup/restore qualification tests."""
 
+import ast
 import hashlib
 import json
 from ctypes import wintypes
@@ -8,6 +9,7 @@ import shutil
 import tempfile
 import unittest
 from unittest import mock
+import xml.etree.ElementTree as ET
 import zipfile
 
 import installed_workflow_qualification as workflow
@@ -254,6 +256,67 @@ class InstalledWorkflowTests(unittest.TestCase):
             with self.subTest(title=title):
                 with self.assertRaisesRegex(ValueError, "default journal title"):
                     workflow.restored_window_title(title, "RestoredQualification")
+
+    def test_journal_directory_discovery_matches_native_chooser_title(self):
+        source_root = Path(__file__).resolve().parents[2]
+        glade = ET.parse(source_root / "rednotebook/files/main_window.glade")
+        chooser = glade.find(".//object[@id='dir_chooser']")
+        self.assertIsNotNone(chooser)
+        title = chooser.find("./property[@name='title']")
+        self.assertIsNotNone(title)
+        self.assertEqual(workflow.JOURNAL_DIRECTORY_CHOOSER_TITLE, title.text)
+
+        module = ast.parse(
+            (source_root / "rednotebook/gui/main_window.py").read_text(encoding="utf-8")
+        )
+        implementation = next(
+            node
+            for node in ast.walk(module)
+            if isinstance(node, ast.FunctionDef) and node.name == "get_new_journal_dir"
+        )
+        self.assertFalse(
+            any(
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "set_title"
+                for node in ast.walk(implementation)
+            ),
+            "runtime code now overrides the static chooser title",
+        )
+
+    def test_reopen_targets_exact_native_directory_chooser(self):
+        native = object.__new__(workflow._WindowsInput)
+        native.current_title = "DayQuay - Friday, 9/11/2026"
+        native.main_hwnd = 101
+        native._main = mock.Mock()
+        native.chord = mock.Mock()
+        native._select_path = mock.Mock()
+        native._wait_window = mock.Mock()
+        native._assert_owned = mock.Mock()
+        original = Path("C:/owned/data")
+        transition = Path("C:/owned/ReopenProbe")
+
+        evidence = native.reopen_journal(
+            original,
+            transition,
+            "DayQuay - ReopenProbe - Friday, 9/11/2026",
+            "DayQuay - Friday, 9/11/2026",
+        )
+
+        self.assertEqual(
+            native._select_path.call_args_list,
+            [
+                mock.call(workflow.JOURNAL_DIRECTORY_CHOOSER_TITLE, transition, "O"),
+                mock.call(workflow.JOURNAL_DIRECTORY_CHOOSER_TITLE, original, "O"),
+            ],
+        )
+        self.assertEqual(
+            evidence,
+            {
+                "away_title": "DayQuay - ReopenProbe - Friday, 9/11/2026",
+                "return_title": "DayQuay - Friday, 9/11/2026",
+            },
+        )
 
     def test_named_and_letter_keys_encode_without_evaluating_the_wrong_fallback(self):
         native = object.__new__(workflow._WindowsInput)
