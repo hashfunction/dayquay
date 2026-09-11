@@ -302,7 +302,9 @@ def native_build_inputs(source_root):
     cached = inventory_tree(evidence / "package-cache")
     declared = {}
     for line in (evidence / "msys2-cache-sha256.txt").read_text(encoding="utf-8").splitlines():
-        match = re.fullmatch(r"([0-9a-f]{64})  build-evidence/package-cache/([^/]+)", line)
+        # GNU sha256sum emits a space plus a mode marker: another space for
+        # text mode, or "*" for binary mode (the MSYS build uses the latter).
+        match = re.fullmatch(r"([0-9a-f]{64}) [ *]build-evidence/package-cache/([^/]+)", line)
         if not match or match[2] in declared:
             raise ValueError("Invalid/duplicate native archive hash entry")
         _checked_path(match[2])

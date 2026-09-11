@@ -155,6 +155,16 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
         self.startup = self.root / "startup.json"
         self.refresh_evidence()
 
+    def test_native_archive_hashes_accept_sha256sum_binary_markers(self):
+        path = self.evidence / "msys2-cache-sha256.txt"
+        lines = path.read_text(encoding="utf-8").splitlines()
+        path.write_text(
+            "\n".join(line[:65] + "*" + line[66:] for line in lines) + "\n",
+            encoding="utf-8",
+        )
+        record = msix.native_build_inputs(self.source)
+        self.assertEqual(record["archives"], msix.inventory_tree(self.evidence / "package-cache"))
+
     def refresh_evidence(self):
         record = msix.create_input_inventory(self.release, self.source, self.commit)
         self.inventory.write_text(json.dumps(record))
