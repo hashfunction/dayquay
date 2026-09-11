@@ -3,6 +3,9 @@ Set-StrictMode -Version Latest
 if (-not $IsWindows -or $env:CI -ne 'true') { throw 'Requires an isolated Windows CI runner.' }
 Set-Location (Resolve-Path (Join-Path $PSScriptRoot '..'))
 $executable = (Resolve-Path 'dist/DayQuay/DayQuay.exe').Path
+$env:APPDATA = Join-Path (Get-Location).Path 'build-evidence/runtime-profile'
+New-Item -ItemType Directory -Force $env:APPDATA | Out-Null
+$env:DAYQUAY_CI_LOG = Join-Path (Get-Location).Path 'build-evidence/early-startup.txt'
 $process = Start-Process $executable -PassThru
 try {
   $deadline = (Get-Date).AddSeconds(45)
@@ -18,4 +21,8 @@ try {
     $process.CloseMainWindow() | Out-Null
     if (-not $process.WaitForExit(5000)) { $process.Kill() }
   }
+  Get-ChildItem $env:APPDATA -Recurse -File -Filter '*.log' | ForEach-Object {
+    Copy-Item $_.FullName (Join-Path 'build-evidence' ('runtime-' + $_.Name + '.txt'))
+  }
+  if (Test-Path $env:DAYQUAY_CI_LOG) { Get-Content $env:DAYQUAY_CI_LOG }
 }
