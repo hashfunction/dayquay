@@ -182,6 +182,9 @@ namespace DayQuayQualification {
     public static class NativePackageProbe {
         [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
         [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr window, int command);
+        [DllImport("user32.dll", SetLastError=true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
         [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
         [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
         private const int ERROR_SUCCESS = 0;
@@ -208,6 +211,63 @@ namespace DayQuayQualification {
 function Test-DayQuayWindowTitle([string]$Title, [string]$ExpectedTitle) {
     if (-not $ExpectedTitle -or $ExpectedTitle.Length -gt 512 -or $ExpectedTitle.Contains("`n") -or $ExpectedTitle.Contains("`r")) { return $false }
     return $Title -ceq $ExpectedTitle
+}
+
+function Assert-DayQuayFiniteRectangle($Rectangle) {
+    foreach ($key in @('x','y','width','height')) {
+        if ($null -eq $Rectangle.$key -or -not [double]::IsFinite([double]$Rectangle.$key) -or
+            [Math]::Abs([double]$Rectangle.$key) -gt 100000) { throw 'Invalid or unbounded window/desktop geometry.' }
+    }
+    if ($Rectangle.width -le 0 -or $Rectangle.height -le 0) { throw 'Empty window/desktop geometry.' }
+}
+
+function Assert-DayQuayCaptureBounds($Bounds, $WorkArea) {
+    Assert-DayQuayFiniteRectangle $Bounds
+    Assert-DayQuayFiniteRectangle $WorkArea
+    if ($Bounds.width -lt 400 -or $Bounds.height -lt 300 -or $Bounds.width -gt 8192 -or $Bounds.height -gt 8192 -or
+        $Bounds.x -lt $WorkArea.x -or $Bounds.y -lt $WorkArea.y -or
+        ($Bounds.x + $Bounds.width) -gt ($WorkArea.x + $WorkArea.width) -or
+        ($Bounds.y + $Bounds.height) -gt ($WorkArea.y + $WorkArea.height)) {
+        throw 'Whole owned window does not fit the observed monitor work area.'
+    }
+}
+
+function Set-DayQuayCapturePlacement([int]$ProcessId, [string]$ExpectedTitle, [Collections.IDictionary]$Operations, [Collections.IDictionary]$Evidence) {
+    $Evidence.adjusted=$false
+    $Evidence.before=$null
+    $Evidence.after=$null
+    $Evidence.requested=$null
+    for ($attempt=0; $attempt -lt 20; $attempt++) {
+        $observed=& $Operations.Observe
+        if ($null -eq $Evidence.before) { $Evidence.before=$observed }
+        $Evidence.after=$observed
+        if ($observed.process_id -ne $ProcessId -or -not (Test-DayQuayWindowTitle $observed.title $ExpectedTitle) -or -not $observed.visible) {
+            throw 'Capture placement observation is not the exact visible owned window.'
+        }
+        Assert-DayQuayFiniteRectangle $observed.bounds
+        Assert-DayQuayFiniteRectangle $observed.work_area
+        if ($observed.bounds.width -lt 400 -or $observed.bounds.height -lt 300 -or
+            $observed.bounds.width -gt 8192 -or $observed.bounds.height -gt 8192 -or
+            $observed.work_area.width -lt 432 -or $observed.work_area.height -lt 332) {
+            throw 'Window or desktop cannot support the required complete screenshot.'
+        }
+        $fits=$false
+        try { Assert-DayQuayCaptureBounds $observed.bounds $observed.work_area; $fits=$true } catch { }
+        if ($fits) { return }
+        if (-not $Evidence.adjusted) {
+            # Keep a margin for native window borders. Never crop the screenshot
+            # or replace observed dimensions with the requested dimensions.
+            $width=[int][Math]::Floor([Math]::Min($observed.bounds.width,$observed.work_area.width-32))
+            $height=[int][Math]::Floor([Math]::Min($observed.bounds.height,$observed.work_area.height-32))
+            $requested=@{x=[int][Math]::Floor($observed.work_area.x+($observed.work_area.width-$width)/2);
+                y=[int][Math]::Floor($observed.work_area.y+($observed.work_area.height-$height)/2);width=$width;height=$height}
+            $Evidence.requested=$requested
+            & $Operations.Move $requested | Out-Null
+            $Evidence.adjusted=$true
+        }
+        & $Operations.Wait | Out-Null
+    }
+    throw 'Owned window did not fit after the bounded native move/resize.'
 }
 
 function Assert-DayQuayWindowEvidence($Snapshot, [string]$ExpectedTitle) {
@@ -291,6 +351,7 @@ function Get-WindowQualification([Diagnostics.Process]$Process, [string]$OutputD
     $screenshotCaptured = $false
     $screenshotError = $null
     $screenshotHash = $null
+    $captureGeometry = @{}
     $colors = [Collections.Generic.HashSet[int]]::new()
     try {
         Add-Type -AssemblyName System.Drawing
@@ -298,12 +359,48 @@ function Get-WindowQualification([Diagnostics.Process]$Process, [string]$OutputD
         [DayQuayQualification.NativePackageProbe]::ShowWindow($Process.MainWindowHandle,9) | Out-Null
         [DayQuayQualification.NativePackageProbe]::SetForegroundWindow($Process.MainWindowHandle) | Out-Null
         Start-Sleep -Milliseconds 250
+        $windowHandle=$Process.MainWindowHandle
+        $observePlacement={
+            $Process.Refresh()
+            if ($Process.HasExited -or $Process.MainWindowHandle -ne $windowHandle) { throw 'Owned process/window changed during capture placement.' }
+            [uint32]$owner=0
+            [DayQuayQualification.NativePackageProbe]::GetWindowThreadProcessId($windowHandle,[ref]$owner) | Out-Null
+            if ($owner -ne $Process.Id -or $root.Current.ProcessId -ne $Process.Id) { throw 'Capture window no longer belongs to the retained process.' }
+            $bounds=$root.Current.BoundingRectangle
+            $area=[Windows.Forms.Screen]::FromHandle($windowHandle).WorkingArea
+            $desktop=[Windows.Forms.SystemInformation]::VirtualScreen
+            return @{process_id=[int]$owner;title=[string]$root.Current.Name;visible=(-not $root.Current.IsOffscreen);
+                bounds=@{x=$bounds.X;y=$bounds.Y;width=$bounds.Width;height=$bounds.Height};
+                work_area=@{x=$area.X;y=$area.Y;width=$area.Width;height=$area.Height};
+                virtual_screen=@{x=$desktop.X;y=$desktop.Y;width=$desktop.Width;height=$desktop.Height}}
+        }.GetNewClosure()
+        $movePlacement={param($requested)
+            # Recheck the same live process and HWND immediately before the only
+            # native mutation. Never enumerate or reposition another process.
+            $Process.Refresh()
+            [uint32]$owner=0
+            [DayQuayQualification.NativePackageProbe]::GetWindowThreadProcessId($windowHandle,[ref]$owner) | Out-Null
+            if ($Process.HasExited -or $Process.MainWindowHandle -ne $windowHandle -or $owner -ne $Process.Id) { throw 'Refusing to move an unowned capture window.' }
+            # ASYNCWINDOWPOS | NOACTIVATE | NOZORDER: the bounded observation
+            # loop, not a synchronous cross-thread move, proves completion.
+            if (-not [DayQuayQualification.NativePackageProbe]::SetWindowPos($windowHandle,[IntPtr]::Zero,
+                $requested.x,$requested.y,$requested.width,$requested.height,0x4014)) {
+                throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error(),'Cannot fit the owned capture window.')
+            }
+        }.GetNewClosure()
+        Set-DayQuayCapturePlacement $Process.Id $ExpectedTitle @{
+            Observe=$observePlacement;Move=$movePlacement;Wait={Start-Sleep -Milliseconds 250}
+        } $captureGeometry
         [uint32]$foregroundPid=0
         [DayQuayQualification.NativePackageProbe]::GetWindowThreadProcessId(
             [DayQuayQualification.NativePackageProbe]::GetForegroundWindow(),[ref]$foregroundPid) | Out-Null
         if ($foregroundPid -ne $Process.Id) { throw 'Owned window is not foreground for screenshot.' }
-        $rootBounds=$root.Current.BoundingRectangle
-        $bounds = $rootBounds
+        $latest=& $observePlacement
+        Assert-DayQuayCaptureBounds $latest.bounds $latest.work_area
+        if ($latest.title -cne $ExpectedTitle -or -not $latest.visible) { throw 'Owned title/visibility changed before screenshot.' }
+        $captureGeometry.after=$latest
+        $rootBounds=$latest.bounds
+        $bounds=$rootBounds
         if ($bounds.Width -lt 400 -or $bounds.Height -lt 300 -or $bounds.Width -gt 8192 -or $bounds.Height -gt 8192) { throw 'Window resized outside bounded screenshot dimensions.' }
         $rectangle=[Drawing.Rectangle]::new([int]$bounds.X,[int]$bounds.Y,[int]$bounds.Width,[int]$bounds.Height)
         if (-not [Windows.Forms.SystemInformation]::VirtualScreen.Contains($rectangle)) { throw 'Owned window is outside the visible desktop.' }
@@ -332,6 +429,7 @@ function Get-WindowQualification([Diagnostics.Process]$Process, [string]$OutputD
         actionable_control_count = $actionable
         screenshot_captured = $screenshotCaptured
         screenshot_error = $screenshotError
+        capture_geometry = $captureGeometry
         startup_limited = ($actionable -eq 0)
         accessibility_scope = 'GTK startup only; journal/backup/restore workflows untested'
     }

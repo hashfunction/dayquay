@@ -272,3 +272,39 @@ text uses LF under both Git for Windows and MSYS Git; binary bytes are unchanged
 A real clone regression proves stable bytes/clean status under both defaults and
 continued rejection of actual source and binary changes. Native confirmation
 and downstream startup/MSIX execution still require a fresh run.
+
+## Complete-window screenshot placement after run 34639820548
+
+At application source `2231eb9fde283053e65a70c4065a41394a0d5311` / public
+snapshot `ac617f5a0f99923eeac3e052e244860f1a8d86ad`, the actual installed
+broker process loaded the packaged Enchant broker, Hunspell provider and
+Hunspell DLL. The preceding native startup log listed `en_US` and its Hunspell
+dictionary. Its exact date-title window was visible at 1040×739, with a single
+GTK UIA root. The screenshot observer rejected it as outside the visible
+desktop; the old evidence did not retain x/y or desktop dimensions, so it cannot
+distinguish an oversized window from offscreen placement. No screenshot or
+normal-close success is claimed from that run.
+
+The observer now restores/focuses the same verified owned HWND, observes its
+actual monitor work area, and moves/resizes it only when the entire window does
+not fit. It retains the original geometry, requested geometry and fresh observed
+geometry, including the virtual desktop. The move uses SetWindowPos with
+ASYNCWINDOWPOS/NOACTIVATE/NOZORDER; a maximum twenty 250ms observations must prove
+completion. Each observation and the immediate move boundary verify the same
+live process/HWND/PID. The exact title, visibility, full work-area containment,
+400×300 minimum/8192 maximum, foreground ownership, full-desktop containment and
+nonblank screenshot checks remain mandatory. A refused minimum size, a native
+error, changed identity/title or insufficient desktop still fails; requested
+coordinates never substitute for observed coordinates. Consumer source and
+packaged runtime gates are unchanged.
+
+Local PowerShell tests execute the actual placement operation with an oversized
+window and fourteen fit/foreign/title/hidden/negative-monitor/nonfinite/refusal
+cases, compile the native declaration and verify production capture wiring.
+Existing nine screenshot-policy negatives and eight title variants still fail.
+These tests adapt only the native observation/move/wait boundaries; actual
+Win32 placement, screenshot, normal close and complete qualification require
+the fresh exact-source Windows run.
+
+Primary API references: [SetWindowPos](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)
+and [Screen.WorkingArea](https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.screen.workingarea?view=windowsdesktop-10.0).
