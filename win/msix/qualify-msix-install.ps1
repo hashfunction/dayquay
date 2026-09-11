@@ -16,8 +16,8 @@ Set-StrictMode -Version Latest
 
 function Invoke-DayQuayQualificationCore([Collections.IDictionary]$Operations) {
     $required = @(
-        'Preflight','PrepareSignedCopy','Install','ActivateAndVerify','CloseCleanly','UninstallAndVerify',
-        'StopOwnedProcess','RemoveOwnedPackage','RemoveTrustedCertificate','RemovePersonalCertificate','RemoveTemporaryFiles'
+        'Preflight','PrepareSignedCopy','PrepareWorkflowFixture','Install','ActivateAndVerify','CloseCleanly','UninstallAndVerify',
+        'StopOwnedProcess','RemoveOwnedPackage','RemoveTrustedCertificate','RemovePersonalCertificate','RemoveWorkflowFixture','RemoveTemporaryFiles'
     )
     foreach ($name in $required) {
         if (-not $Operations.Contains($name) -or $Operations[$name] -isnot [scriptblock]) {
@@ -27,7 +27,7 @@ function Invoke-DayQuayQualificationCore([Collections.IDictionary]$Operations) {
     $primaryError = $null
     $cleanupErrors = [Collections.Generic.List[string]]::new()
     try {
-        foreach ($name in @('Preflight','PrepareSignedCopy','Install','ActivateAndVerify','CloseCleanly','UninstallAndVerify')) {
+        foreach ($name in @('Preflight','PrepareSignedCopy','PrepareWorkflowFixture','Install','ActivateAndVerify','CloseCleanly','UninstallAndVerify')) {
             # Native tools such as SignTool emit stdout. Keep it in the host
             # log without turning this function's structured result into an array.
             & $Operations[$name] | Out-Host
@@ -35,7 +35,7 @@ function Invoke-DayQuayQualificationCore([Collections.IDictionary]$Operations) {
     } catch {
         $primaryError = $_.Exception.Message
     } finally {
-        foreach ($name in @('StopOwnedProcess','RemoveOwnedPackage','RemoveTrustedCertificate','RemovePersonalCertificate','RemoveTemporaryFiles')) {
+        foreach ($name in @('StopOwnedProcess','RemoveOwnedPackage','RemoveTrustedCertificate','RemovePersonalCertificate','RemoveWorkflowFixture','RemoveTemporaryFiles')) {
             try {
                 & $Operations[$name] | Out-Host
             } catch {
@@ -449,6 +449,67 @@ function Write-NewUtf8Json([string]$Path, [object]$Value) {
     }
 }
 
+function Write-NewUtf8Text([string]$Path, [string]$Value) {
+    $bytes = [Text.UTF8Encoding]::new($false).GetBytes($Value)
+    $stream = [IO.FileStream]::new($Path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+    try {
+        $stream.Write($bytes, 0, $bytes.Length)
+        $stream.Flush($true)
+    } finally {
+        $stream.Dispose()
+    }
+}
+
+function New-DayQuayWorkflowProfile([string]$ProfileRoot, [string]$OwnershipToken) {
+    if (-not $OwnershipToken -or $OwnershipToken -cnotmatch '^[0-9a-f]{32}$') { throw 'Invalid workflow-profile ownership token.' }
+    if (Test-Path -LiteralPath $ProfileRoot) { throw 'Existing DayQuay profile must be preserved.' }
+    Assert-NoReparsePath ([IO.Path]::GetDirectoryName((Get-CanonicalPath $ProfileRoot)))
+    New-Item -ItemType Directory -Path $ProfileRoot -ErrorAction Stop | Out-Null
+    $ownership = $null
+    try {
+        Assert-NoReparsePath $ProfileRoot
+        $marker = Join-Path $ProfileRoot '.dayquay-qualification-owner'
+        Write-NewUtf8Text $marker $OwnershipToken
+        $ownership = [ordered]@{
+            root = Get-CanonicalPath $ProfileRoot
+            marker = Get-CanonicalPath $marker
+            marker_sha256 = (Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+        New-Item -ItemType Directory -Path (Join-Path $ProfileRoot 'data') -ErrorAction Stop | Out-Null
+        New-Item -ItemType Directory -Path (Join-Path $ProfileRoot 'ReopenProbe') -ErrorAction Stop | Out-Null
+        Write-NewUtf8Text (Join-Path $ProfileRoot 'configuration.cfg') "firstStart=0`n"
+        return $ownership
+    } catch {
+        $preparationError = $_.Exception.Message
+        if (-not $ownership) {
+            throw "$preparationError Workflow profile preparation cleanup ownership is unproven; path preserved."
+        }
+        try {
+            Remove-DayQuayWorkflowProfile $ownership | Out-Null
+        } catch {
+            throw "$preparationError Workflow profile preparation cleanup failed; path preserved: $($_.Exception.Message)"
+        }
+        throw
+    }
+}
+
+function Remove-DayQuayWorkflowProfile($Ownership) {
+    if (-not $Ownership) { return $false }
+    $root = Get-CanonicalPath ([string]$Ownership.root)
+    $marker = Get-CanonicalPath ([string]$Ownership.marker)
+    if (-not (Test-PathInside $marker $root) -or -not (Test-Path -LiteralPath $root -PathType Container)) {
+        throw 'Owned workflow profile identity is missing or outside its root.'
+    }
+    Assert-NoReparsePath $root
+    Assert-NoReparsePath $marker
+    if ((Get-FileHash -LiteralPath $marker -Algorithm SHA256).Hash.ToLowerInvariant() -cne [string]$Ownership.marker_sha256) {
+        throw 'Owned workflow profile marker changed; profile preserved.'
+    }
+    Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
+    if (Test-Path -LiteralPath $root) { throw 'Owned workflow profile remains after cleanup.' }
+    return $true
+}
+
 function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$RecordPath, [string]$SignToolPath, [string]$OutputPath) {
     $state = [ordered]@{
         package = $null; record = $null; output = $null; temporary = $null; signedCopy = $null
@@ -458,7 +519,9 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         unsignedPackageSha256 = $null; signedPackageSha256 = $null; signTool = $null
         aumid = $null; processPackageFullName = $null; modules = @(); window = $null
         executableSha256 = $null; expectedTitle = $null
-        cleanClose = $false; uninstallVerified = $false
+        cleanClose = $false; uninstallVerified = $false; processShutdownVerified = $false
+        workflowProfile = $null; workflowProfileRemoved = $false; workflowEvidence = $null; workflowTested = $false
+        workflowArchive = $null; workflowRestoreName = 'RestoredQualification'; workflowSentinel = $null; workflowReopenMarker = $null
     }
     $expectedIdentity = [ordered]@{
         packageName='Trieflow.DayQuay.Qualification'; publisher='CN=DayQuay-CI-Qualification'; version='1.0.0.0'
@@ -547,6 +610,15 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         }
         if ((Get-FileHash -LiteralPath $state.package -Algorithm SHA256).Hash.ToLowerInvariant() -ne $state.unsignedPackageSha256) { throw 'Unsigned source package changed during signing.' }
         $state.signedPackageSha256 = (Get-FileHash -LiteralPath $state.signedCopy -Algorithm SHA256).Hash.ToLowerInvariant()
+    }.GetNewClosure()
+
+    $operations.PrepareWorkflowFixture = {
+        $state.workflowProfile = New-DayQuayWorkflowProfile `
+            -ProfileRoot (Join-Path $env:APPDATA 'DayQuay') `
+            -OwnershipToken ([guid]::NewGuid().ToString('N'))
+        $state.workflowArchive = Join-Path $state.temporary 'DayQuay-consumer-backup.zip'
+        $state.workflowSentinel = 'DAYQUAY-INSTALLED-WORKFLOW-' + [guid]::NewGuid().ToString('N').ToUpperInvariant()
+        $state.workflowReopenMarker = 'DAYQUAY-REOPENED-WORKFLOW-' + [guid]::NewGuid().ToString('N').ToUpperInvariant()
     }.GetNewClosure()
 
     $operations.Install = {
@@ -640,6 +712,27 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         $state.modules = @($modules)
         Write-NewUtf8Json (Join-Path $state.output 'loaded-modules.json') $state.modules
         $state.window = Get-WindowQualification $state.process $state.output $state.expectedTitle
+        $workflowEvidencePath = Join-Path $state.output 'installed-consumer-workflow.json'
+        Invoke-CheckedNative (Get-DayQuayPackagingPython) @(
+            (Join-Path $PSScriptRoot 'installed_workflow_qualification.py'),
+            '--process-id',[string]$state.process.Id,
+            '--main-window-handle',[string]$state.process.MainWindowHandle.ToInt64(),
+            '--initial-title',$state.expectedTitle,
+            '--profile-root',[string]$state.workflowProfile.root,
+            '--archive',$state.workflowArchive,
+            '--restore-name',$state.workflowRestoreName,
+            '--sentinel',$state.workflowSentinel,
+            '--reopen-marker',$state.workflowReopenMarker,
+            '--output',$workflowEvidencePath)
+        $state.workflowEvidence = Get-Content -LiteralPath $workflowEvidencePath -Raw -Encoding utf8 | ConvertFrom-Json
+        if ($state.workflowEvidence.schema_version -ne 1 -or
+            -not $state.workflowEvidence.journal_backup_restore_workflow_tested -or
+            $state.workflowEvidence.input_method -cne 'owned Win32 SendInput keyboard/mouse' -or
+            $state.workflowEvidence.process_id -ne $state.process.Id -or
+            $state.workflowEvidence.main_window_handle -ne $state.process.MainWindowHandle.ToInt64()) {
+            throw 'Installed consumer workflow evidence is incomplete or belongs to another process/window.'
+        }
+        $state.workflowTested = $true
         $state.process.Refresh()
         if ($state.process.HasExited -or $state.process.MainWindowHandle -eq 0) { throw 'Activated DayQuay did not survive the stable-window interval.' }
     }.GetNewClosure()
@@ -649,6 +742,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         $state.processExit = Get-DayQuayProcessExitEvidence $state.process 15000
         if (-not $state.processExit.normal_exit) { throw ('Activated DayQuay normal-close observation failed: ' + ($state.processExit | ConvertTo-Json -Compress)) }
         $state.cleanClose = $true
+        $state.processShutdownVerified = $true
     }.GetNewClosure()
 
     $operations.UninstallAndVerify = {
@@ -666,6 +760,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
                 if (-not $state.process.HasExited) { $state.process.Kill() }
                 $state.cleanupProcessExit = Get-DayQuayProcessExitEvidence $state.process 10000
                 if (-not $state.cleanupProcessExit.wait_completed -or $state.cleanupProcessExit.observation_error) { throw ('Owned process cleanup failed: ' + ($state.cleanupProcessExit | ConvertTo-Json -Compress)) }
+                $state.processShutdownVerified = $true
             }
         } finally {
             if ($state.process) { $state.process.Dispose() }
@@ -708,6 +803,15 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         }
     }.GetNewClosure()
 
+    $operations.RemoveWorkflowFixture = {
+        if ($state.workflowProfile) {
+            if ($state.brokerProcessId -ne 0 -and -not $state.processShutdownVerified) {
+                throw 'Activated process shutdown is unproven; workflow profile preserved.'
+            }
+            $state.workflowProfileRemoved = Remove-DayQuayWorkflowProfile $state.workflowProfile
+        }
+    }.GetNewClosure()
+
     $operations.RemoveTemporaryFiles = {
         if ($state.temporary -and (Test-Path -LiteralPath $state.temporary)) {
             Remove-Item -LiteralPath $state.temporary -Recurse -Force -ErrorAction Stop
@@ -732,6 +836,13 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
     } elseif ($result.installation_qualification_passed) {
         $evidenceErrors.Add('Successful core qualification did not retain the unsigned package identity.')
     }
+    if ($result.installation_qualification_passed -and
+        (-not $state.workflowTested -or -not $state.workflowEvidence -or -not $state.workflowProfileRemoved)) {
+        $evidenceErrors.Add('Successful core qualification lacks installed workflow or owned profile-cleanup evidence.')
+    }
+    if ($result.installation_qualification_passed -and -not $state.processShutdownVerified) {
+        $evidenceErrors.Add('Successful core qualification lacks verified activated-process shutdown.')
+    }
     $qualificationPassed = $result.installation_qualification_passed -and $unsignedUnchanged -and $evidenceErrors.Count -eq 0
     $evidence = [ordered]@{
         schema_version = 1
@@ -755,14 +866,17 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         executable_sha256 = $state.executableSha256
         loaded_module_count = @($state.modules).Count
         window = $state.window
+        installed_consumer_workflow = $state.workflowEvidence
+        workflow_profile_removed = $state.workflowProfileRemoved
         process_exit = $state.processExit
         cleanup_process_exit = $state.cleanupProcessExit
+        process_shutdown_verified = $state.processShutdownVerified
         process_identity_ownership_established = $state.processOwned
         clean_close_verified = $state.cleanClose
         uninstall_verified = $state.uninstallVerified
         installation_qualification_passed = $qualificationPassed
         workflow_acceptance = $false
-        journal_backup_restore_workflow_tested = $false
+        journal_backup_restore_workflow_tested = $state.workflowTested
         native_source_clearance = $false
         upgrade_tested = $false
         wack_tested = $false
@@ -780,7 +894,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
     if (-not $qualificationPassed) {
         throw "DayQuay installation qualification failed. Primary: $($result.primary_error); cleanup: $($result.cleanup_errors -join '; '); evidence: $($evidenceErrors -join '; ')"
     }
-    Write-Output 'PASS: broker-activated exact package, verified owned modules/window/close, uninstalled, and cleaned certificate state.'
+    Write-Output 'PASS: broker-activated exact package, exercised installed journal/backup/restore, verified owned modules/window/close, uninstalled, and cleaned owned profile/certificate state.'
 }
 
 if (-not $LibraryOnly) {

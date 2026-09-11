@@ -345,3 +345,55 @@ The focused suites are `test_native_notices.py` (7 tests),
 They use real files/archives and actual qualification methods; these local
 checks do not qualify a newly built Windows package. Root owns independent
 review and the exact-source native build/installed qualification.
+
+## Installed journal/backup/restore qualification
+
+Windows run [34650691200](https://github.com/hashfunction/dayquay/actions/runs/34650691200)
+passed the complete native package, installed identity, 183-module runtime,
+screenshot, normal-close, uninstall and cleanup qualification at source
+`a931ae3e017f38e9b27952339d494d527b45db41`. Its actual UI Automation tree
+contained only the owned top-level `ControlType.Window`: zero actionable
+controls were exposed. The receipt therefore correctly left
+`journal_backup_restore_workflow_tested=false`.
+
+`installed_workflow_qualification.py` now uses bounded Win32 `SendInput`
+keyboard/mouse events against that already-verified foreground process and
+exact main HWND. It clicks the visible editor, replaces its content with a
+unique synthetic sentinel and invokes the real Save action. It then switches
+through the real New Journal UI to an empty owned journal, observes the changed
+window title, reopens the original through the real Open dialog, appends a
+second marker in the editor and saves it. It creates a portable backup through
+the Journal menu and Save chooser, and drives the existing restore inspection,
+fresh-folder and Open-restored-journal dialogs. Before every input packet, the
+helper rechecks its retained process handle plus the exact visible, enabled,
+owned foreground HWND and title. A missing or unexpected dialog, changed or
+closed PID/HWND, lost foreground, refused path, timeout or error fails the
+qualification before further input is sent.
+
+Independent checks capture the exact saved month bytes and require the same
+file name, byte count and SHA-256 after reopening, inside the backup manifest
+and ZIP payload, and under the newly restored journal path. The restored main
+window must carry the exact source-derived title for that fresh folder. After
+restore, the original journal tree and backup archive are hashed again and must
+still match their protected pre-restore bytes. No product API, alternate
+executable argument, hidden command, or test-only consumer behavior is used.
+
+The runner must begin without either the DayQuay or legacy RedNotebook profile.
+Qualification exclusively creates `%APPDATA%\DayQuay`, records an unpredictable
+ownership marker, uses only its default `data` journal and fresh restore folder,
+and removes it only after the verified owned process stops. A pre-existing
+profile, changed marker, reparse path, incomplete construction cleanup or
+unproven process shutdown is preserved and fails cleanup rather than being
+removed. Existing package identity, complete installed payload, module,
+Defender-signature, screenshot, process-handle, normal-close, registration,
+uninstall, certificate and temporary-directory gates remain required.
+
+The local regression exercises the full save/reopen/backup/restore verifier and
+rejects no-op reopen, lost/replaced input targets, stopped processes, changed
+archive bytes, deleted/changed/extra original files, extra restored files,
+missing/wrong markers and invalid title contracts. The Windows workflow also
+runs real profile ownership and orchestration tests, including partial-build,
+reparse replacement and unproven-shutdown preservation, before packaging.
+macOS cannot execute Win32 input, GTK Windows dialogs, PowerShell, MSIX
+installation or native cleanup; a fresh reviewed Windows run remains the
+required acceptance evidence.

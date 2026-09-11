@@ -44,10 +44,14 @@ function Invoke-DayQuayQualificationCore([Collections.IDictionary]$Operations) {
     $state.unsignedPackageSha256=(Get-FileHash $state.package -Algorithm SHA256).Hash.ToLowerInvariant()
     $state.signedCopy='owned-test-signed-copy.msix'
     $state.record=[pscustomobject]@{sourceCommit=('a'*40);payload=[pscustomobject]@{}}
+    $state.workflowTested=$true
+    $state.workflowProfileRemoved=$true
+    $state.workflowEvidence=[pscustomobject]@{journal_backup_restore_workflow_tested=$true}
+    $state.processShutdownVerified=$true
     # Native preflight is unavailable locally. Capture the empty preflight view;
     # actual Add/Get/Remove production closures run through the controlled adapter.
     $Operations.Preflight={ if (@(Get-AppxPackage -Name 'Trieflow.DayQuay.Qualification').Count) { throw 'Fixture must start empty' } }
-    foreach ($name in @('PrepareSignedCopy','VerifyInstalledMedia','CaptureInstalledStderr','ActivateAndVerify','UninstallAndVerify','StopOwnedProcess','RemoveTrustedCertificate','RemovePersonalCertificate','RemoveTemporaryFiles')) {
+    foreach ($name in @('PrepareSignedCopy','PrepareWorkflowFixture','VerifyInstalledMedia','CaptureInstalledStderr','ActivateAndVerify','UninstallAndVerify','StopOwnedProcess','RemoveTrustedCertificate','RemovePersonalCertificate','RemoveWorkflowFixture','RemoveTemporaryFiles')) {
         if ($name -eq 'UninstallAndVerify' -and $fixture.scenario -in @('normal-owned','normal-with-foreign')) { continue }
         $Operations[$name]={}
     }
