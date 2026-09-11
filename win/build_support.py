@@ -1,7 +1,7 @@
 """Fail-closed discovery for source-to-package Windows inputs."""
 
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 
 class MissingWindowsInput(RuntimeError):
@@ -12,6 +12,40 @@ class MissingWindowsInput(RuntimeError):
 class EnchantInputs:
     binaries: tuple
     datas: tuple
+
+
+def normalize_enchant_binaries(binaries, broker):
+    """Keep the qualified bin broker after PyInstaller expands PE dependencies."""
+    try:
+        expected = Path(broker).resolve(strict=True)
+        if not expected.is_file():
+            raise OSError("Broker source is not a file")
+    except OSError as exc:
+        raise MissingWindowsInput(f"Missing qualified Enchant broker source: {broker}") from exc
+    name = "libenchant-2-2.dll"
+    normalized = []
+    found_bin = False
+    for row in binaries:
+        destination, source, kind = row
+        path = PureWindowsPath(destination)
+        if path.name.casefold() != name:
+            normalized.append(row)
+            continue
+        target = path.as_posix().casefold()
+        if target not in (name, f"bin/{name}") or kind != "BINARY":
+            raise MissingWindowsInput(f"Unexpected Enchant broker TOC entry: {row}")
+        try:
+            same_source = Path(source).resolve(strict=True) == expected
+        except OSError as exc:
+            raise MissingWindowsInput(f"Missing Enchant broker TOC source: {source}") from exc
+        if not same_source:
+            raise MissingWindowsInput(f"Unqualified Enchant broker TOC source: {source}")
+        if target == f"bin/{name}" and not found_bin:
+            normalized.append((f"bin/{name}", str(expected), "BINARY"))
+            found_bin = True
+    if not found_bin:
+        raise MissingWindowsInput("Dependency analysis lost the explicit bin Enchant broker")
+    return normalized
 
 
 def resolve_enchant_inputs(prefix):

@@ -16,7 +16,7 @@ if not prefix_value:
 prefix = Path(prefix_value)
 
 sys.path.insert(0, str(win_dir))
-from build_support import resolve_enchant_inputs
+from build_support import normalize_enchant_binaries, resolve_enchant_inputs
 
 
 enchant = resolve_enchant_inputs(prefix)
@@ -62,6 +62,9 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+# PE dependency scanning independently adds the provider's broker at the root.
+# Collapse only that verified duplicate after scanning, preserving all imports.
+a.binaries = normalize_enchant_binaries(a.binaries, prefix / "bin/libenchant-2-2.dll")
 pyz = PYZ(a.pure)
 exe = EXE(
     pyz,

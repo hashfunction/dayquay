@@ -33,6 +33,17 @@ both user overrides unchanged. ``tests/test_enchant_discovery.py`` executes the
 installed, source-pinned PyEnchant selector up to (but not including) native DLL
 loading, checking both modes against a real foreign-prefix fixture.
 
+PyInstaller 6.22.1 independently collects the Hunspell provider's linked broker
+at the bundle root during PE dependency analysis, even when the broker is an
+explicit ``bin`` input. After Analysis, the spec retains the explicit bin entry
+and removes only root/bin duplicates whose resolved source is that same qualified
+broker. Foreign sources, wrong TOC types/destinations or a lost bin entry fail
+the build. Other binaries, including Hunspell/GLib dependencies, are unchanged;
+the package inventory still refuses a flat broker and requires the provider and
+dictionary. ``tests/test_enchant_layout.py`` executes the installed PyInstaller
+dependency-TOC algorithm and real spec wiring with only native PE import discovery
+adapted to the retained provider import graph. Windows loading remains required.
+
 Optional legacy Inno installer handoff (MSIX remains root-owned):
 
   iscc /DREDNOTEBOOK_VERSION=2.42.0.1 win/rednotebook.iss
