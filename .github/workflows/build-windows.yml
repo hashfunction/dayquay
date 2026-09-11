@@ -38,7 +38,7 @@ jobs:
           mkdir -p build-evidence
           pacman -Q > build-evidence/msys2-installed-packages.txt
           pacman -Qi > build-evidence/msys2-package-metadata.txt
-          sha256sum /var/cache/pacman/pkg/*.pkg.tar.* > build-evidence/msys2-cache-sha256.txt
+          bash win/record-msys2-inputs.sh
           python --version > build-evidence/python-version.txt
       - name: Install pinned pure Python Enchant binding
         run: |
