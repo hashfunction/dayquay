@@ -193,3 +193,38 @@ No Windows GUI, SDK pack/unpack, installed broker activation, normal close or
 owned uninstall result is claimed for these changes. Root owns independent
 re-review and fresh exact-source Windows qualification. No dependency selection,
 application behavior, workflow file, account or public-release state changed.
+
+
+## Native junction fixture repair after run34613988830
+
+At source7ea423e, the actual MSYS2 UCRT Python3.14 runner passed26 package
+tests but `cmd /d /c mklink /J` exited1 before the junction assertion. Its
+recorded operands were `D:/a/_temp/msys64/tmp/.../release/redirect` and
+`D:/a/_temp/msys64/tmp/.../external`; the captured native diagnostic was not
+printed by CalledProcessError. The previously qualified TwinQuay counterpart
+uses native CPython Windows Path spelling. This evidence motivates normalizing
+only these test operands to Windows backslashes; the next native run must
+confirm the repaired command on MSYS2.
+
+The fixture still executes real `mklink /J` on Windows, now with spaced directory
+names to exercise subprocess argument quoting, `/d` to disable AutoRun and
+`/v:off` to disable delayed expansion. Test-owned paths containing command
+syntax/expansion or control characters are rejected before invocation. A nonzero
+exit fails the test with the exact operand list and captured stdout/stderr; it
+never skips. After creation, native lstat must prove the reparse attribute and
+mount-point tag before the unchanged real stage validator rejects it. Cleanup
+removes the link itself in finally, without following it. Production reparse
+rejection and package behavior are unchanged.
+
+Microsoft primary command references: [mklink](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/mklink)
+and [cmd quoting/options](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/cmd).
+
+RED: the extracted original command seam retained the exact forward-slash
+fixture operands, failing the native-path assertion. Diagnostic and unsafe-path
+regressions also failed before repair. GREEN: all30 package tests and3notice
+tests pass locally, including the actual POSIX directory-link rejection and
+three added command/diagnostic/syntax regressions. Black100 and diff checks pass.
+Local command-adapter tests do not execute cmd.exe or claim a native junction
+pass. Independent source review and fresh exact-source Windows qualification
+remain required. InkQuay uses direct CreateSymbolicLinkW/RemoveDirectoryW test
+APIs, so its qualifier confirmed this specific cmd operand issue does not apply.

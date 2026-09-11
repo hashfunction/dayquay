@@ -12,10 +12,12 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import zipfile
 
 try:
@@ -451,21 +453,79 @@ class QualificationTests(unittest.TestCase):
             self.stage()
         self.assertEqual(marker.read_text(), "preserve")
 
+    def create_windows_junction(self, link, target):
+        # MSYS2's native Python can spell absolute paths D:/...; cmd's mklink
+        # builtin needs Windows operands. Keep argv quoting for spaces and refuse
+        # shell syntax/expansion in these test-owned paths before invoking cmd.
+        paths = [str(path).replace("/", "\\") for path in (link, target)]
+        for path in paths:
+            self.assertFalse(
+                any(c in path for c in '"%!&|^<>()') or any(ord(c) < 32 for c in path),
+                "Unsafe cmd syntax in junction fixture path",
+            )
+        result = subprocess.run(
+            ["cmd.exe", "/d", "/v:off", "/c", "mklink", "/J", *paths],
+            capture_output=True,
+            text=True,
+            errors="replace",
+        )
+        self.assertEqual(
+            result.returncode, 0, f"mklink failed for {paths!r}: {result.stdout} {result.stderr}"
+        )
+        return result
+
+    def test_junction_command_uses_native_paths_from_msys_spelling(self):
+        completed = subprocess.CompletedProcess([], 0, stdout=b"created", stderr=b"")
+        with patch("subprocess.run", return_value=completed) as run:
+            self.create_windows_junction(
+                "D:/a/_temp/msys64/tmp/fixture/release/redirect directory",
+                "D:/a/_temp/msys64/tmp/fixture/external directory",
+            )
+        arguments = run.call_args.args[0]
+        self.assertEqual(
+            arguments[-2:],
+            [
+                r"D:\a\_temp\msys64\tmp\fixture\release\redirect directory",
+                r"D:\a\_temp\msys64\tmp\fixture\external directory",
+            ],
+        )
+        # Windows subprocess serialization must retain each path as one operand.
+        command = subprocess.list2cmdline(arguments)
+        self.assertIn('"' + arguments[-2] + '"', command)
+        self.assertIn('"' + arguments[-1] + '"', command)
+
+    def test_junction_failure_retains_native_diagnostics(self):
+        failed = subprocess.CompletedProcess(
+            [], 1, stdout="mklink stdout", stderr="native syntax error"
+        )
+        with patch("subprocess.run", return_value=failed), self.assertRaisesRegex(
+            AssertionError, "native syntax error"
+        ):
+            self.create_windows_junction("D:/fixture/link", "D:/fixture/target")
+
+    def test_junction_fixture_refuses_cmd_expansion_or_control_characters(self):
+        for character in ('"', "%", "!", "&", "|", "^", "<", ">", "\r", "\n"):
+            with self.subTest(character=character), patch("subprocess.run") as run:
+                with self.assertRaises(AssertionError):
+                    self.create_windows_junction("D:/fixture/link" + character, "D:/fixture/target")
+                run.assert_not_called()
+
     def test_directory_link_or_native_junction_is_not_followed(self):
-        link = self.release / "redirect"
-        target = self.root / "external"
+        link = self.release / "redirect directory"
+        target = self.root / "external directory"
         target.mkdir()
         if os.name == "nt":
-            subprocess.run(
-                ["cmd", "/d", "/c", "mklink", "/J", str(link), str(target)],
-                check=True,
-                capture_output=True,
-            )
+            self.create_windows_junction(link, target)
         else:
             link.symlink_to(target, target_is_directory=True)
-        with self.assertRaises(ValueError):
-            self.stage()
-        link.rmdir() if os.name == "nt" else link.unlink()
+        try:
+            if os.name == "nt":
+                self.assertTrue(link.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+                self.assertEqual(link.lstat().st_reparse_tag, stat.IO_REPARSE_TAG_MOUNT_POINT)
+            with self.assertRaisesRegex(ValueError, "reparse"):
+                self.stage()
+        finally:
+            link.rmdir() if os.name == "nt" else link.unlink()
 
     def package(self):
         record = self.stage()
