@@ -33,6 +33,7 @@ jobs:
             mingw-w64-ucrt-x86_64-python-setuptools
             mingw-w64-ucrt-x86_64-pyinstaller
             gettext
+            diffutils
       - name: Record versions and exact package hashes
         run: |
           mkdir -p build-evidence
