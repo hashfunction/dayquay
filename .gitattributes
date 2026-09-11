@@ -2,3 +2,6 @@
 * text=auto eol=lf
 
 win/record-msys2-inputs.sh text eol=lf
+
+# Preserve hash-bound upstream line endings and trailing whitespace verbatim.
+win/notice-supplement/** -text -whitespace

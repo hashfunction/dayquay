@@ -45,3 +45,26 @@ Corresponding modified DayQuay source, including the Windows build scripts,
 must be made available at https://dayquay.trieflow.com/source before any binary
 is distributed. That publication is a release gate, not a claim that the URL is
 currently live.
+
+ORIGINAL SUPPLEMENTAL NOTICES
+=============================
+
+The Windows distribution also includes notices/supplement/index.json and its
+648 original files: five supplemental upstream originals for libyaml,
+PyGObject, GObject Introspection and JBIG-KIT, plus 643 license/notice texts from
+the 359 registry inputs in librsvg's resolved Cargo lock. These include build,
+test and proc-macro dependencies; inclusion does not mean every crate is linked.
+The JBIG-KIT original is the complete source file containing its license header.
+Each file is retained unchanged, including its original line endings.
+
+The index records original source archive names, URLs and hashes, archive member
+paths, declared licenses, individual notice hashes, and the verified source
+delivery manifest. It supplements the existing notices/native and
+notices/pyenchant collections and the license texts above; it does not replace
+them or relicense their contents. Paths in this document are relative to the
+PyInstaller _internal data directory.
+
+https://dayquay.trieflow.com/source is the canonical landing page for the
+application source, exact dependency source inputs, build recipes and original
+notices. Retained originals in this package are a notice supplement, not a
+substitute for delivering the corresponding source available through that page.

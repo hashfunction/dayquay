@@ -1,7 +1,10 @@
 """Actual file notice collection tests. Fixtures do not qualify native licenses."""
 
 import importlib.util
+import hashlib
+import json
 from pathlib import Path
+import shutil
 import tempfile
 import os
 import stat
@@ -56,6 +59,63 @@ class NoticeTests(WindowsJunctionFixture, unittest.TestCase):
         with self.assertRaises(ValueError):
             collector.collect_notices(self.prefix, self.release)
         self.assertEqual(marker.read_bytes(), b"preserve")
+
+    def test_collects_all_original_supplement_bytes_beside_existing_notices(self):
+        collector.collect_notices(self.prefix, self.release)
+        output = self.release / "_internal/notices/supplement"
+        self.assertTrue((output / "index.json").is_file(), "Original supplement was omitted")
+        index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(index["files"]), 648)
+        original = Path(__file__).parents[1] / "notice-supplement"
+        self.assertEqual(
+            (output / "index.json").read_bytes(), (original / "index.json").read_bytes()
+        )
+        for name, expected in index["files"].items():
+            data = (output / name).read_bytes()
+            self.assertEqual(data, (original / name).read_bytes(), name)
+            self.assertEqual(len(data), expected["bytes"], name)
+            self.assertEqual(hashlib.sha256(data).hexdigest(), expected["sha256"], name)
+        self.assertEqual(
+            (self.release / "_internal/notices/native/python/LICENSE").read_bytes(),
+            b"Original native Python copyright",
+        )
+
+    def test_refuses_missing_corrupt_extra_or_mistyped_original_before_copying(self):
+        for mutation in ("missing", "corrupt", "extra", "mistyped"):
+            with self.subTest(mutation=mutation):
+                supplement = self.root / mutation
+                shutil.copytree(Path(__file__).parents[1] / "notice-supplement", supplement)
+                original = supplement / "upstream/libyaml/License"
+                if mutation == "missing":
+                    original.unlink()
+                elif mutation == "corrupt":
+                    original.write_bytes(b"altered notice")
+                elif mutation == "extra":
+                    (supplement / "unindexed").write_bytes(b"extra")
+                else:
+                    path = supplement / "index.json"
+                    index = json.loads(path.read_text(encoding="utf-8"))
+                    index["files"]["upstream/libyaml/License"]["bytes"] = True
+                    path.write_text(json.dumps(index), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "[Oo]riginal notice supplement"):
+                    collector.collect_notices(self.prefix, self.release, supplement)
+                self.assertFalse((self.release / "_internal/notices").exists())
+
+    def test_detects_corrupted_copy_and_preserves_unrelated_stage_file(self):
+        marker = self.release / "existing-resource"
+        marker.write_bytes(b"preserve")
+        copy_bytes = shutil.copyfileobj
+
+        def corrupt_one_copy(source, destination):
+            copy_bytes(source, destination)
+            if Path(destination.name).as_posix().endswith("supplement/upstream/libyaml/License"):
+                destination.write(b"corruption during copy")
+
+        with patch.object(collector.shutil, "copyfileobj", side_effect=corrupt_one_copy):
+            with self.assertRaisesRegex(ValueError, "supplement changed while copying"):
+                collector.collect_notices(self.prefix, self.release)
+        self.assertEqual(marker.read_bytes(), b"preserve")
+        self.assertFalse((self.release / "_internal/notices").exists())
 
     def create_notice_link(self, notice):
         if os.name == "nt":

@@ -20,11 +20,12 @@ class CheckoutTests(unittest.TestCase):
             git("config", "user.name", "Checkout Fixture")
             git("config", "user.email", "fixture@example.invalid")
             git("config", "core.autocrlf", "false")
-            (source / ".gitattributes").write_bytes(
-                (root / ".gitattributes").read_bytes()
-            )
+            (source / ".gitattributes").write_bytes((root / ".gitattributes").read_bytes())
             (source / "source.py").write_bytes(b"# exact source\nvalue = 1\n")
             (source / "image.png").write_bytes(b"\x89PNG\r\n\x1a\n\x00binary\r\n")
+            notice = source / "win/notice-supplement/cargo/upstream/License"
+            notice.parent.mkdir(parents=True)
+            notice.write_bytes(b"Original upstream notice\r\nPreserve exact bytes\r\n")
             git("add", ".")
             git("commit", "-qm", "fixture")
             clone = Path(directory) / "Windows checkout"
@@ -37,10 +38,12 @@ class CheckoutTests(unittest.TestCase):
                 str(source),
                 str(clone),
             )
-            for filename in ("source.py", "image.png"):
-                self.assertEqual(
-                    (clone / filename).read_bytes(), (source / filename).read_bytes()
-                )
+            for filename in (
+                "source.py",
+                "image.png",
+                "win/notice-supplement/cargo/upstream/License",
+            ):
+                self.assertEqual((clone / filename).read_bytes(), (source / filename).read_bytes())
             for autocrlf in ("true", "false"):
                 git("config", "core.autocrlf", autocrlf, at=clone)
                 self.assertEqual(

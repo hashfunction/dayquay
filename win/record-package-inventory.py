@@ -17,12 +17,17 @@ from msix_qualification import (
     _regular_stream,
     _write_new,
     _canonical_json,
+    notice_supplement_inventory,
 )
 
 
-def collect_notices(prefix, release):
+def collect_notices(prefix, release, supplement=None):
     source = Path(prefix) / "share/licenses"
     measured = inventory_tree(source)
+    supplement = (
+        Path(supplement) if supplement is not None else Path(__file__).parent / "notice-supplement"
+    )
+    originals = notice_supplement_inventory(supplement)
     output = Path(release) / "_internal/notices"
     if os.path.lexists(output):
         raise ValueError("Native notice output already exists and will not be replaced")
@@ -35,6 +40,16 @@ def collect_notices(prefix, release):
                 shutil.copyfileobj(stream, destination)
         if inventory_tree(source) != measured or inventory_tree(output / "native") != measured:
             raise ValueError("Native notice source changed while copying")
+        for relative in originals:
+            target = output / "supplement" / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with _regular_stream(supplement / relative) as stream, target.open("xb") as destination:
+                shutil.copyfileobj(stream, destination)
+        if (
+            notice_supplement_inventory(supplement) != originals
+            or inventory_tree(output / "supplement") != originals
+        ):
+            raise ValueError("Original notice supplement changed while copying")
         return dict(
             files=inventory_tree(output),
             inventoryIsLicenseClearance=False,

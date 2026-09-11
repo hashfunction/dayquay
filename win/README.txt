@@ -52,3 +52,42 @@ Do not distribute a binary until the Windows app itself has run successfully,
 the package contents and uninstall behavior have been checked, and the complete
 corresponding source URL is live. A successful native import probe alone is not
 an application build.
+
+ORIGINAL NOTICE DISTRIBUTION
+============================
+
+The canonical source landing page is https://dayquay.trieflow.com/source. It
+links the application source and the matching dependency source/recipe delivery.
+win/notice-supplement is the checked-in notice subset of that verified source
+collection: 648 unchanged originals (3,384,225 bytes) plus index.json. The index
+ties each notice to its exact archive/member and hash, the resolved librsvg
+Cargo lock, native inventory run 34642181739 and the source-delivery manifest.
+The Cargo subset covers all 359 registry inputs, including build/test/proc-macro
+inputs, without claiming that every crate is linked into the shipped runtime.
+
+The existing same-run CI post-build command:
+
+  python win/record-package-inventory.py
+
+copies these originals to dist/DayQuay/_internal/notices/supplement beside the
+installed native and PyEnchant notice trees. It validates the source index
+before copying and rechecks source and destination bytes afterward. The full
+source-to-stage inventory requires every original copy, so a refreshed notice
+receipt cannot make a missing or altered copy acceptable. A bare PyInstaller
+output does not yet include the post-build native/supplemental notice collection.
+The command retains its existing disposable Windows CI/source-commit checks.
+
+Git marks this original subtree -text so Windows autocrlf cannot rewrite its
+line endings. Existing license files and installed notices are preserved.
+Updates must use verified original source inputs and refresh the index; do not
+edit an upstream copyright, license text, or notice to make a hash check pass.
+
+Local file-boundary checks (no GTK/Windows execution claims):
+
+  python win/msix/test_native_notices.py -v
+  python win/msix/test_msix_qualification.py -v
+  python win/msix/test_source_checkout.py -v
+
+An exact new Windows build still verifies the final packaged copies and existing
+startup, identity, normal-exit and uninstall gates. This notice addition changes
+no dependency selection or application behavior.

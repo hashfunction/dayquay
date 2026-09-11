@@ -96,6 +96,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
             ("LICENSES", "LICENSES"),
             ("rednotebook/images/dayquay-icon", "images/dayquay-icon"),
             ("rednotebook/files", "files"),
+            ("win/notice-supplement", "notices/supplement"),
         ]:
             source = self.source / original
             dest = self.release / "_internal" / target
@@ -140,14 +141,14 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
             )
         )
         notice = self.release / "_internal/notices/native/python/LICENSE"
-        notice.parent.mkdir(parents=True)
+        notice.parent.mkdir(parents=True, exist_ok=True)
         notice.write_bytes(b"Collected installed Python notice fixture")
         (self.evidence / "packaging-python.json").write_text(
             json.dumps(dict(path=sys.executable, **digest(Path(sys.executable).read_bytes())))
         )
         self.notice_path = self.evidence / "native-notices.json"
         self.notices = {
-            "files": {"native/python/LICENSE": digest(notice.read_bytes())},
+            "files": msix.inventory_tree(self.release / "_internal/notices"),
             "unresolved": ["Corresponding source and complete native license audit required"],
             "inventoryIsLicenseClearance": False,
         }
@@ -224,6 +225,18 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
         stale.write_bytes(b"old layout that gives PyEnchant the wrong prefix")
         with self.assertRaisesRegex(ValueError, "provider-prefix"):
             self.refresh_evidence()
+
+    def test_original_notice_copy_is_required_even_if_notice_receipt_is_refreshed(self):
+        target = self.release / "_internal/notices/supplement/upstream/libyaml/License"
+        original = target.read_bytes()
+        for mutation in ("missing", "corrupt"):
+            with self.subTest(mutation=mutation):
+                target.unlink() if mutation == "missing" else target.write_bytes(b"changed")
+                self.notices["files"] = msix.inventory_tree(self.release / "_internal/notices")
+                self.notice_path.write_text(json.dumps(self.notices), encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "Original source notice"):
+                    self.refresh_evidence()
+                target.write_bytes(original)
 
     def test_inventory_or_stage_tampering_extra_and_omitted_files_rejected(self):
         for mode in ("changed", "extra", "missing"):

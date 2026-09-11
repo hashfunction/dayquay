@@ -83,6 +83,7 @@ SOURCE_TREES = {
     "LICENSES": "LICENSES",
     "rednotebook/images/dayquay-icon": "images/dayquay-icon",
     "rednotebook/files": "files",
+    "win/notice-supplement": "notices/supplement",
 }
 BUILD_ARTIFACTS = (
     "native-installed-versions.txt",
@@ -221,6 +222,30 @@ def file_record(path):
         return _digest(stream)
 
 
+def notice_supplement_inventory(root):
+    """Require every indexed original notice byte before packaging or binding."""
+    measured = inventory_tree(root)
+    index = _load_json(Path(root) / "index.json", "original notice supplement index")
+    expected = index.get("files")
+    if index.get("schemaVersion") != 1 or not isinstance(expected, dict) or not expected:
+        raise ValueError("Invalid original notice supplement index")
+    for name, record in expected.items():
+        _checked_path(name)
+        if (
+            name == "index.json"
+            or not isinstance(record, dict)
+            or type(record.get("bytes")) is not int
+            or record["bytes"] < 0
+            or not isinstance(record.get("sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", record["sha256"])
+            or set(record) != {"bytes", "sha256"}
+        ):
+            raise ValueError("Invalid original notice supplement file record")
+    if {name: row for name, row in measured.items() if name != "index.json"} != expected:
+        raise ValueError("Original notice supplement differs from indexed bytes")
+    return measured
+
+
 def source_inputs(source_root):
     source_root = Path(source_root)
     tree = ast.parse((source_root / "rednotebook/info.py").read_text(encoding="utf-8"))
@@ -272,7 +297,12 @@ def source_inputs(source_root):
         )
     }
     for tree in SOURCE_TREES:
-        for relative, record in inventory_tree(source_root / tree).items():
+        records = (
+            notice_supplement_inventory(source_root / tree)
+            if tree == "win/notice-supplement"
+            else inventory_tree(source_root / tree)
+        )
+        for relative, record in records.items():
             result[tree + "/" + relative] = record
     return result
 

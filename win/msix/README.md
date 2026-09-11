@@ -308,3 +308,40 @@ the fresh exact-source Windows run.
 
 Primary API references: [SetWindowPos](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setwindowpos)
 and [Screen.WorkingArea](https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.screen.workingarea?view=windowsdesktop-10.0).
+
+## Original notice supplement — source delivery follow-up
+
+The existing post-build collector now carries `win/notice-supplement` into
+`_internal/notices/supplement`. It contains 648 original files, 3,384,225 bytes:
+643 Cargo notice/license texts plus 5 upstream originals. Existing installed
+native/PyEnchant collections and all earlier source license texts are retained.
+The 480,295-byte index has SHA256
+`504ce4ea01ad8fc92dd9fa53660fa5f677b9eb51547004ba45ea52dc1b8f94e8`;
+it names every copied byte hash and original archive/member, the exact librsvg
+resolved lock, source inventory run 34642181739 and frozen source-delivery
+manifest SHA256 `63cab5ab45105a57d95f7d6215d8777495acfb4dacbf3a939ddb8cb15bc4697f`.
+The index includes all 359 Cargo registry inputs, including build/test/proc-macro
+inputs; it does not claim all those packages are linked into the application.
+
+Collection validates the checked-in index before creating its output, uses
+exclusive writes and rechecks both source and destination afterward. Existing
+source-to-stage verification now requires the whole original tree, including
+the index. Updating a receipt cannot hide a missing or altered packaged copy.
+The source subtree uses Git `-text`; original CRLF and other upstream bytes must
+survive both Git for Windows and MSYS Git unchanged. See `win/README.txt` and
+https://dayquay.trieflow.com/source for the corresponding-source build/delivery
+instructions. No dependency selection, recipe, runtime hook, product behavior,
+workflow, package identity or lifecycle gate changed.
+
+RED was observed in the actual collector (supplement absent) and a real Git
+clone (CRLF changed to LF before the attribute rule). The new package regression
+also fails when only the supplement source-binding entry is removed: both
+missing and corrupted copies become accepted after receipt regeneration.
+GREEN verification covers original byte copies, missing/corrupt/unindexed and
+mistyped inputs, injected corruption during copying, preservation of unrelated
+stage files, refreshed-receipt rejection and actual checkout byte preservation.
+The focused suites are `test_native_notices.py` (7 tests),
+`test_msix_qualification.py` (33 tests), and `test_source_checkout.py` (1 test).
+They use real files/archives and actual qualification methods; these local
+checks do not qualify a newly built Windows package. Root owns independent
+review and the exact-source native build/installed qualification.
