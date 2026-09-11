@@ -17,11 +17,15 @@
 # -----------------------------------------------------------------------
 
 import datetime
+import hashlib
+import json
 import logging
 import os
+import stat
+import tempfile
 import zipfile
-
-from gi.repository import Gtk
+from dataclasses import dataclass
+from pathlib import Path, PurePosixPath
 
 
 DATE_FORMAT = "%Y-%m-%d"
@@ -29,17 +33,140 @@ MAX_BACKUP_AGE = 7
 BACKUP_NOW = 100
 ASK_NEXT_TIME = 200
 NEVER_ASK_AGAIN = 300
+MANIFEST_NAME = "dayquay-manifest.json"
+COPY_CHUNK_SIZE = 1024 * 1024
 
 
-def write_archive(archive_file_name, files, base_dir="", arc_base_dir=""):
-    """
-    Use base_dir for relative filenames, in case you don't
-    want your archive to contain '/home/...'
-    """
-    archive = zipfile.ZipFile(archive_file_name, mode="w", compression=zipfile.ZIP_DEFLATED)
-    for file in files:
-        archive.write(file, os.path.join(arc_base_dir, file[len(base_dir) :]))
-    archive.close()
+class InvalidBackupSource(ValueError):
+    pass
+
+
+@dataclass(frozen=True)
+class BackupResult:
+    archive_path: str
+    file_count: int
+    total_bytes: int
+
+
+def _source_entries(files, base_dir, arc_base_dir=""):
+    root = Path(base_dir or os.curdir).resolve(strict=True)
+    prefix = PurePosixPath(str(arc_base_dir).replace("\\", "/"))
+    entries = []
+    seen = set()
+    for value in files:
+        source = Path(value)
+        if source.is_symlink():
+            raise InvalidBackupSource(f'Backup source is a symbolic link: "{source}"')
+        try:
+            resolved = source.resolve(strict=True)
+            relative = resolved.relative_to(root)
+        except (OSError, ValueError) as exc:
+            raise InvalidBackupSource(f'Backup source is outside journal: "{source}"') from exc
+        if not resolved.is_file():
+            raise InvalidBackupSource(f'Backup source is not a regular file: "{source}"')
+        member = prefix.joinpath(*relative.parts)
+        member_name = member.as_posix().lstrip("/")
+        if not member_name or member_name == MANIFEST_NAME or member_name in seen:
+            raise InvalidBackupSource(f'Unsafe or duplicate archive path: "{member_name}"')
+        seen.add(member_name)
+        entries.append((member_name, resolved))
+    return sorted(entries, key=lambda item: item[0])
+
+
+def _stream_member(archive, member_name, source):
+    digest = hashlib.sha256()
+    size = 0
+    source_stat = source.stat(follow_symlinks=False)
+    if not stat.S_ISREG(source_stat.st_mode):
+        raise InvalidBackupSource(f'Backup source is not a regular file: "{source}"')
+    with source.open("rb") as input_file, archive.open(member_name, "w") as output_file:
+        while chunk := input_file.read(COPY_CHUNK_SIZE):
+            output_file.write(chunk)
+            digest.update(chunk)
+            size += len(chunk)
+    return {"path": member_name, "sha256": digest.hexdigest(), "size": size}
+
+
+def _manifest(entries):
+    return {
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "entries": entries,
+        "format": "dayquay-backup",
+        "version": 1,
+    }
+
+
+def build_manifest(data_dir, files):
+    entries = []
+    for member_name, source in _source_entries(files, data_dir):
+        digest = hashlib.sha256()
+        size = 0
+        with source.open("rb") as input_file:
+            while chunk := input_file.read(COPY_CHUNK_SIZE):
+                digest.update(chunk)
+                size += len(chunk)
+        entries.append({"path": member_name, "sha256": digest.hexdigest(), "size": size})
+    return _manifest(entries)
+
+
+def _publish_no_replace(staged, destination):
+    """Atomically publish a sibling file while preserving any existing destination."""
+    try:
+        os.link(staged, destination)
+    except FileExistsError:
+        raise
+    except OSError as exc:
+        raise OSError(f'Atomic no-replace publish failed for "{destination}": {exc}') from exc
+    os.unlink(staged)
+
+
+def write_archive(
+    archive_file_name, files, base_dir="", arc_base_dir="", *, overwrite=False
+):
+    """Write a portable archive and publish it after full integrity verification."""
+    destination = Path(archive_file_name).resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    entries = [
+        (member, source)
+        for member, source in _source_entries(files, base_dir, arc_base_dir)
+        if source != destination
+    ]
+    descriptor, staged_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent
+    )
+    os.close(descriptor)
+    staged = Path(staged_name)
+    manifest_entries = []
+    try:
+        with zipfile.ZipFile(staged, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for member_name, source in entries:
+                manifest_entries.append(_stream_member(archive, member_name, source))
+            archive.writestr(
+                MANIFEST_NAME,
+                json.dumps(
+                    _manifest(manifest_entries), ensure_ascii=False, separators=(",", ":")
+                ).encode("utf-8"),
+            )
+        with staged.open("rb") as staged_file:
+            os.fsync(staged_file.fileno())
+        with zipfile.ZipFile(staged) as archive:
+            if failed_member := archive.testzip():
+                raise OSError(f'Backup verification failed for member "{failed_member}"')
+            json.loads(archive.read(MANIFEST_NAME))
+        if overwrite:
+            os.replace(staged, destination)
+        else:
+            _publish_no_replace(staged, destination)
+        return BackupResult(
+            archive_path=str(destination),
+            file_count=len(manifest_entries),
+            total_bytes=sum(entry["size"] for entry in manifest_entries),
+        )
+    finally:
+        try:
+            staged.unlink()
+        except FileNotFoundError:
+            pass
 
 
 class Archiver:
@@ -47,6 +174,8 @@ class Archiver:
         self.journal = journal
 
     def check_last_backup_date(self):
+        from gi.repository import Gtk
+
         last_backup_age = self._last_backup_age()
         if last_backup_age <= MAX_BACKUP_AGE:
             return
@@ -94,7 +223,12 @@ class Archiver:
                 if not file.endswith("~") and "RedNotebook-Backup" not in file:
                     archive_files.append(os.path.join(root, file))
 
-        write_archive(backup_file, archive_files, data_dir)
+        write_archive(
+            backup_file,
+            archive_files,
+            data_dir,
+            overwrite=os.path.exists(backup_file),
+        )
 
         logging.info(f"The content has been backed up at {backup_file}")
         self.journal.config["lastBackupDate"] = datetime.datetime.now().strftime(DATE_FORMAT)
@@ -113,6 +247,8 @@ class Archiver:
         return last_backup_age
 
     def _get_backup_file(self):
+        from gi.repository import Gtk
+
         if self.journal.title == "data":
             name = ""
         else:

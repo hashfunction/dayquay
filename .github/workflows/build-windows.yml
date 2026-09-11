@@ -44,6 +44,10 @@ jobs:
       - name: Install pinned pure Python Enchant binding
         run: |
           python -m pip install --no-deps --no-build-isolation --no-binary=:all: --require-hashes -r win/pyenchant-source-lock.txt
+      - name: Locate the installed Enchant ABI DLL
+        run: |
+          test -f "$MINGW_PREFIX/bin/libenchant-2-2.dll"
+          echo "PYENCHANT_LIBRARY_PATH=$(cygpath -m "$MINGW_PREFIX/bin/libenchant-2-2.dll")" >> "$GITHUB_ENV"
       - name: Verify real GTK3, GtkSource4 and spellcheck runtime
         run: python win/dayquay-runtime-probe.py
       - name: Test upstream baseline before feature implementation
