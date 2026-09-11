@@ -50,6 +50,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
             "LICENSES",
             "win",
             "rednotebook/info.py",
+            "rednotebook/product.py",
             "rednotebook/journal.py",
             "rednotebook/configuration.py",
             "rednotebook/util/dates.py",
@@ -74,7 +75,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
             "_internal/libpython3.14.dll": b"MSYS2 Python runtime",
             "_internal/libgtk-3-0.dll": b"GTK3 runtime",
             "_internal/libgtksourceview-4-0.dll": b"GtkSource4 runtime",
-            "_internal/libenchant-2-2.dll": b"Enchant runtime",
+            "_internal/bin/libenchant-2-2.dll": b"Enchant runtime",
             "_internal/gi/_gi.cp314-mingw_x86_64_ucrt_gnu.pyd": b"PyGObject native binding",
             "_internal/lib/enchant-2/enchant_hunspell.dll": b"Hunspell provider",
             "_internal/gi_typelibs/Gtk-3.0.typelib": b"GTK typelib",
@@ -217,6 +218,12 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
             self.assertEqual(
                 msix.png_dimensions((self.root / "stage/Assets" / name).read_bytes()), (size, size)
             )
+
+    def test_flat_enchant_broker_layout_is_rejected(self):
+        stale = self.release / "_internal/libenchant-2-2.dll"
+        stale.write_bytes(b"old layout that gives PyEnchant the wrong prefix")
+        with self.assertRaisesRegex(ValueError, "provider-prefix"):
+            self.refresh_evidence()
 
     def test_inventory_or_stage_tampering_extra_and_omitted_files_rejected(self):
         for mode in ("changed", "extra", "missing"):

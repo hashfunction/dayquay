@@ -44,22 +44,46 @@ def default_user_dir(
 
 
 def configure_bundled_enchant(base_dir, *, frozen=None, environment=None):
-    """Point PyEnchant at the exact DLL shipped in a frozen DayQuay build."""
+    """Configure the relocatable Enchant prefix shipped in frozen DayQuay."""
     if frozen is None:
         frozen = hasattr(sys, "frozen")
     if not frozen:
         return None
     environment = os.environ if environment is None else environment
+    # PyEnchant checks this override before PYENCHANT_LIBRARY_PATH. A frozen
+    # application must use its own broker/provider prefix, even when inherited.
+    environment.pop("PYENCHANT_ENCHANT_PREFIX", None)
     base_dir = Path(base_dir)
-    candidates = (base_dir / "libenchant-2-2.dll", base_dir / "bin" / "libenchant-2-2.dll")
-    for candidate in candidates:
-        if candidate.is_file():
-            resolved = candidate.resolve()
-            environment["PYENCHANT_LIBRARY_PATH"] = str(resolved)
-            return resolved
+    candidate = base_dir / "bin" / "libenchant-2-2.dll"
+    required = (
+        candidate,
+        base_dir / "lib" / "enchant-2" / "enchant_hunspell.dll",
+        base_dir / "share" / "hunspell" / "en_US.aff",
+        base_dir / "share" / "hunspell" / "en_US.dic",
+    )
+    missing = [path for path in required if not path.is_file()]
+    if not missing:
+        resolved = candidate.resolve()
+        environment["PYENCHANT_LIBRARY_PATH"] = str(resolved)
+        bundled_data = str((base_dir / "share").resolve())
+        existing = [
+            value
+            for value in environment.get("XDG_DATA_DIRS", "").split(os.pathsep)
+            if value
+        ]
+        bundled_key = os.path.normcase(os.path.abspath(bundled_data))
+        existing = [
+            value
+            for value in existing
+            if os.path.normcase(os.path.abspath(value)) != bundled_key
+        ]
+        environment["XDG_DATA_DIRS"] = os.pathsep.join([bundled_data, *existing])
+        return resolved
     environment.pop("PYENCHANT_LIBRARY_PATH", None)
     raise ProductConfigurationError(
-        f"Frozen DayQuay runtime is missing bundled libenchant-2-2.dll under {base_dir}"
+        "Frozen DayQuay runtime requires bin/libenchant-2-2.dll, its "
+        f"lib/enchant-2 provider and share/hunspell en_US data under {base_dir}; "
+        f"missing: {', '.join(str(path) for path in missing)}"
     )
 
 

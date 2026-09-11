@@ -1,4 +1,6 @@
 import importlib.util
+import os
+import runpy
 import sys
 import types
 from pathlib import Path
@@ -24,7 +26,7 @@ def test_resolve_enchant_inputs_requires_runtime_provider_and_dictionary(tmp_pat
     inputs = build_support.resolve_enchant_inputs(prefix)
 
     assert inputs.binaries == (
-        (prefix / "bin" / "libenchant-2-2.dll", "."),
+        (prefix / "bin" / "libenchant-2-2.dll", "bin"),
         (prefix / "lib" / "enchant-2" / "enchant_hunspell.dll", "lib/enchant-2"),
     )
     assert inputs.datas == (
@@ -43,6 +45,32 @@ def test_resolve_enchant_inputs_fails_closed_without_dictionary(tmp_path):
 
     with pytest.raises(build_support.MissingWindowsInput, match="en_US"):
         build_support.resolve_enchant_inputs(prefix)
+
+
+def test_runtime_hook_configures_real_prefix_layout_before_enchant_import(tmp_path, monkeypatch):
+    bundle = tmp_path / "_internal"
+    (bundle / "bin").mkdir(parents=True)
+    (bundle / "lib" / "enchant-2").mkdir(parents=True)
+    (bundle / "share" / "hunspell").mkdir(parents=True)
+    (bundle / "bin" / "libenchant-2-2.dll").write_bytes(b"broker")
+    (bundle / "lib" / "enchant-2" / "enchant_hunspell.dll").write_bytes(b"provider")
+    (bundle / "share" / "hunspell" / "en_US.aff").write_text("aff")
+    (bundle / "share" / "hunspell" / "en_US.dic").write_text("dic")
+    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.delenv("DAYQUAY_CI_LOG", raising=False)
+    monkeypatch.delenv("PYENCHANT_LIBRARY_PATH", raising=False)
+    monkeypatch.setenv("XDG_DATA_DIRS", str(tmp_path / "system-share"))
+
+    runpy.run_path(str(Path(__file__).parents[1] / "win" / "dayquay-runtime-hook.py"))
+
+    assert os.environ["PYENCHANT_LIBRARY_PATH"] == str(
+        (bundle / "bin" / "libenchant-2-2.dll").resolve()
+    )
+    assert os.environ["XDG_DATA_DIRS"].split(os.pathsep) == [
+        str((bundle / "share").resolve()),
+        str(tmp_path / "system-share"),
+    ]
 
 
 def test_local_gtksource_hook_collects_version_four_resources(monkeypatch):

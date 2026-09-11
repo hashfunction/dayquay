@@ -21,8 +21,17 @@ set listed in that workflow:
 The spec derives the repository from SPECPATH, requires MINGW_PREFIX, selects
 GtkSourceView 4 through hook configuration, includes the local resource hook,
 and stages Enchant's ABI DLL, Hunspell provider, en_US dictionary and license.
-The runtime hook sets PYENCHANT_LIBRARY_PATH to the DLL inside the frozen app
-before PyEnchant imports.
+The runtime hook points PYENCHANT_LIBRARY_PATH at
+``_internal/bin/libenchant-2-2.dll`` before PyEnchant imports. Keeping the DLL
+under ``bin`` is required because PyEnchant 3.3 derives Enchant's relocatable
+prefix from the DLL's parent directory. The hook also prepends
+``_internal/share`` to XDG_DATA_DIRS so the Hunspell provider can find the
+packaged en_US dictionary without redirecting the user's Enchant config folder.
+Frozen setup removes an inherited ``PYENCHANT_ENCHANT_PREFIX`` because PyEnchant
+checks that override before ``PYENCHANT_LIBRARY_PATH``. Source-mode launches keep
+both user overrides unchanged. ``tests/test_enchant_discovery.py`` executes the
+installed, source-pinned PyEnchant selector up to (but not including) native DLL
+loading, checking both modes against a real foreign-prefix fixture.
 
 Optional legacy Inno installer handoff (MSIX remains root-owned):
 

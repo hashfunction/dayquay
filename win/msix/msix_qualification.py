@@ -58,7 +58,7 @@ RUNTIME = {
     "python": "_internal/libpython3.14.dll",
     "gtk": "_internal/libgtk-3-0.dll",
     "gtkSource": "_internal/libgtksourceview-4-0.dll",
-    "enchant": "_internal/libenchant-2-2.dll",
+    "enchant": "_internal/bin/libenchant-2-2.dll",
     "enchantProvider": "_internal/lib/enchant-2/enchant_hunspell.dll",
 }
 REQUIRED_RELEASE_FILES = tuple(RUNTIME.values()) + (
@@ -259,6 +259,7 @@ def source_inputs(source_root):
         for name in (
             *SOURCE_COPIES,
             "rednotebook/info.py",
+            "rednotebook/product.py",
             "rednotebook/gui/main_window.py",
             *TITLE_SOURCE_FILES,
             "win/pyenchant-source-lock.txt",
@@ -343,6 +344,8 @@ def create_input_inventory(release, source_root, source_commit):
     for name in REQUIRED_RELEASE_FILES:
         if name not in files or files[name]["bytes"] == 0:
             raise ValueError(f"Missing runtime/resource/notice: {name}")
+    if "_internal/libenchant-2-2.dll" in files:
+        raise ValueError("Flat Enchant broker layout breaks PyEnchant provider-prefix discovery")
     bindings = [
         name for name in files if re.fullmatch(r"_internal/gi/_gi(?:[.][^/]+)?[.]pyd", name)
     ]

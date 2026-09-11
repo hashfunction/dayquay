@@ -4,6 +4,8 @@ import os
 import sys
 from pathlib import Path
 
+from rednotebook import product
+
 
 # The isolated qualification runner requests early boot diagnostics before GTK
 # and application logging initialize. Ordinary product launches do not do this.
@@ -13,7 +15,4 @@ if os.environ.get("CI") == "true" and os.environ.get("DAYQUAY_CI_LOG"):
     sys.stderr = diagnostic_stream
 
 base_dir = Path(sys._MEIPASS)
-dll = base_dir / "libenchant-2-2.dll"
-if not dll.is_file():
-    raise RuntimeError(f"DayQuay package is missing its Enchant runtime: {dll}")
-os.environ["PYENCHANT_LIBRARY_PATH"] = str(dll.resolve())
+product.configure_bundled_enchant(base_dir, frozen=True)

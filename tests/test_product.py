@@ -37,30 +37,65 @@ def test_portable_user_dir_stays_beside_application(tmp_path):
 
 
 def test_frozen_runtime_selects_actual_bundled_enchant_dll(tmp_path):
-    dll = tmp_path / "libenchant-2-2.dll"
+    dll = tmp_path / "bin" / "libenchant-2-2.dll"
+    dll.parent.mkdir()
     dll.write_bytes(b"dll")
-    environment = {"PYENCHANT_LIBRARY_PATH": "C:/unrelated/libenchant.dll"}
+    (tmp_path / "lib" / "enchant-2").mkdir(parents=True)
+    (tmp_path / "lib" / "enchant-2" / "enchant_hunspell.dll").write_bytes(b"provider")
+    (tmp_path / "share" / "hunspell").mkdir(parents=True)
+    (tmp_path / "share" / "hunspell" / "en_US.aff").write_text("aff")
+    (tmp_path / "share" / "hunspell" / "en_US.dic").write_text("dic")
+    environment = {
+        "PYENCHANT_LIBRARY_PATH": "C:/unrelated/libenchant.dll",
+        "XDG_DATA_DIRS": str(tmp_path / "system-share"),
+    }
 
     selected = product.configure_bundled_enchant(
         tmp_path, frozen=True, environment=environment
     )
 
     assert selected == dll
+    assert selected.parent.name == "bin" and selected.parent.parent == tmp_path
     assert environment["PYENCHANT_LIBRARY_PATH"] == str(dll.resolve())
+    assert environment["XDG_DATA_DIRS"].split(os.pathsep) == [
+        str((tmp_path / "share").resolve()),
+        str(tmp_path / "system-share"),
+    ]
+    product.configure_bundled_enchant(tmp_path, frozen=True, environment=environment)
+    assert environment["XDG_DATA_DIRS"].split(os.pathsep).count(
+        str((tmp_path / "share").resolve())
+    ) == 1
+
+
+def test_frozen_runtime_rejects_flat_broker_layout_that_breaks_provider_prefix(tmp_path):
+    (tmp_path / "libenchant-2-2.dll").write_bytes(b"wrong layout")
+
+    with pytest.raises(product.ProductConfigurationError, match="bin"):
+        product.configure_bundled_enchant(tmp_path, frozen=True, environment={})
 
 
 def test_non_frozen_runtime_does_not_override_enchant(tmp_path):
-    environment = {"PYENCHANT_LIBRARY_PATH": "C:/development/enchant.dll"}
+    environment = {
+        "PYENCHANT_LIBRARY_PATH": "C:/development/enchant.dll",
+        "PYENCHANT_ENCHANT_PREFIX": "C:/development",
+    }
 
     assert product.configure_bundled_enchant(
         tmp_path, frozen=False, environment=environment
     ) is None
     assert environment["PYENCHANT_LIBRARY_PATH"] == "C:/development/enchant.dll"
+    assert environment["PYENCHANT_ENCHANT_PREFIX"] == "C:/development"
 
 
 def test_frozen_runtime_fails_when_bundled_enchant_is_missing(tmp_path):
+    environment = {
+        "PYENCHANT_LIBRARY_PATH": "C:/development/enchant.dll",
+        "PYENCHANT_ENCHANT_PREFIX": "C:/development",
+    }
     with pytest.raises(product.ProductConfigurationError, match="libenchant-2-2.dll"):
-        product.configure_bundled_enchant(tmp_path, frozen=True, environment={})
+        product.configure_bundled_enchant(tmp_path, frozen=True, environment=environment)
+    assert "PYENCHANT_LIBRARY_PATH" not in environment
+    assert "PYENCHANT_ENCHANT_PREFIX" not in environment
 
 
 def test_explicit_legacy_import_copies_data_without_modifying_source(tmp_path):

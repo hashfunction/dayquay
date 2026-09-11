@@ -31,7 +31,9 @@ def resolve_enchant_inputs(prefix):
         )
     if not dictionary_license.is_file():
         raise MissingWindowsInput(f"Missing en_US dictionary license: {dictionary_license}")
-    binaries = [(broker, ".")]
+    # PyEnchant derives Enchant's relocatable prefix as the parent of the DLL's
+    # bin directory. Keeping the broker in bin is required for provider lookup.
+    binaries = [(broker, "bin")]
     binaries.extend((path, "lib/enchant-2") for path in providers)
     datas = [(path, "share/hunspell") for path in dictionaries]
     datas.append((dictionary_license, "LICENSES"))

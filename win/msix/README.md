@@ -31,8 +31,12 @@ rolling repositories; a drift from those source-qualified direct inputs fails
 closed. There is no resolver update, package override or claim that the rolling
 setup is reproducible. PyEnchant retains its existing hash-required source install.
 
-The actual UCRT runtime contract is `libpython3.14.dll`, GTK3, GtkSource4, Enchant,
-its Hunspell provider and one unambiguous PyGObject `_gi*.pyd`. Required typelibs,
+The actual UCRT runtime contract is `libpython3.14.dll`, GTK3, GtkSource4,
+`bin/libenchant-2-2.dll`, its `lib/enchant-2` Hunspell provider and one
+unambiguous PyGObject `_gi*.pyd`. The `bin` layout preserves PyEnchant 3.3's
+relocatable-prefix calculation, while the early runtime hook prepends the
+packaged `share` directory to GLib's system data search for the bundled en_US
+dictionary. Required typelibs,
 source resources and dictionaries are separately inventoried. No CPython.org,
 Qt or .NET application paths are substituted. Transformed Python/bootloader build
 output is not represented as byte-identical to upstream package archives.
