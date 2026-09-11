@@ -1,89 +1,83 @@
-# -*- mode: python -*-
+# -*- mode: python ; coding: utf-8 -*-
+"""Reproducible one-directory DayQuay build from an MSYS2 UCRT64 prefix."""
 
 import os
-import os.path
+import sys
+from pathlib import Path
 
-block_cipher = None
-debug = False
 
-drive_c = DISTPATH
-repo = "D:\\a\\rednotebook\\rednotebook"
-gtkdir = os.path.join(drive_c, 'gtk')
-srcdir = os.path.join(repo, 'rednotebook')
-icon = os.path.join(repo, 'win', 'rednotebook.ico')
+win_dir = Path(SPECPATH).resolve()
+repo = win_dir.parent
+srcdir = repo / "rednotebook"
+icon = win_dir / "dayquay.ico"
+prefix_value = os.environ.get("MINGW_PREFIX")
+if not prefix_value:
+    raise RuntimeError("MINGW_PREFIX must identify the qualified MSYS2 UCRT64 environment")
+prefix = Path(prefix_value)
 
-MISSED_BINARIES = [
-    (os.path.join(gtkdir, src), destdir) for src, destdir in [
-        ("bin/gdbus.exe", "."),
-        ("bin/libenchant.dll", "."),
-        ("lib/enchant/libenchant_myspell.dll", "lib/enchant/"),
+sys.path.insert(0, str(win_dir))
+from build_support import resolve_enchant_inputs
+
+
+enchant = resolve_enchant_inputs(prefix)
+required = (repo, srcdir, icon, win_dir / "dayquay-runtime-hook.py")
+missing = [str(path) for path in required if not path.exists()]
+if missing:
+    raise RuntimeError("Missing DayQuay build inputs: " + ", ".join(missing))
+
+datas = [(str(path), destination) for path, destination in enchant.datas]
+datas.extend(
+    [
+        (str(srcdir / "files"), "files"),
+        (str(srcdir / "images"), "images"),
+        (str(repo / "LICENSE"), "."),
+        (str(repo / "LICENSES"), "LICENSES"),
+        (str(repo / "debian" / "copyright"), "."),
+        (str(win_dir / "THIRD-PARTY-NOTICES.txt"), "."),
+        (str(win_dir / "windows-dependencies.json"), "."),
     ]
-]
-
-# Add enchant dictionary files.
-import glob
-ENCHANT_DICT_FILES = []
-dict_source_dir = os.path.join(gtkdir, "share", "enchant", "myspell", "myspell")
-if os.path.exists(dict_source_dir):
-    for dict_file in glob.glob(os.path.join(dict_source_dir, "*")):
-        if os.path.isfile(dict_file):
-            filename = os.path.basename(dict_file)
-            ENCHANT_DICT_FILES.append((dict_file, "share/enchant/myspell"))
-
-# Ensure at least one dictionary file was found.
-assert ENCHANT_DICT_FILES, "No enchant dictionary files found in {}".format(dict_source_dir)
-
-for path in [drive_c, repo, srcdir, icon] + [src for src, _ in MISSED_BINARIES]:
-    assert os.path.exists(path), "{} does not exist".format(path)
-
-print('PATH:', os.environ['PATH'])
-
-
-def Dir(path, excludes=None):
-    assert os.path.isdir(path), path
-    return Tree(path, prefix=os.path.basename(path), excludes=excludes or [])
+)
 
 a = Analysis(
-    [os.path.join(srcdir, 'journal.py')],
-    pathex=[repo],
-    binaries=MISSED_BINARIES,
-    datas=ENCHANT_DICT_FILES,
+    [str(srcdir / "journal.py")],
+    pathex=[str(repo)],
+    binaries=[(str(path), destination) for path, destination in enchant.binaries],
+    datas=datas,
     hiddenimports=[],
-    hookspath=["."],  # To find custom hooks.
-    runtime_hooks=[],
+    hookspath=[str(win_dir / "hooks")],
+    hooksconfig={
+        "gi": {
+            "icons": ["Adwaita"],
+            "themes": ["Adwaita"],
+            "languages": ["en"],
+            "module-versions": {"Gtk": "3.0", "GtkSource": "4"},
+        }
+    },
+    runtime_hooks=[str(win_dir / "dayquay-runtime-hook.py")],
     excludes=[],
-    win_no_prefer_redirects=False,
-    win_private_assemblies=False,
-    cipher=block_cipher,
     noarchive=False,
+    optimize=0,
 )
-pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
+pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
+    [],
     exclude_binaries=True,
-    name='rednotebook.exe',
-    debug=debug,
+    name="DayQuay",
+    debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    console=debug,
+    upx=False,
+    console=False,
     disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=icon,
+    icon=str(icon),
 )
 coll = COLLECT(
     exe,
     a.binaries,
-    a.zipfiles,
     a.datas,
-    Dir(os.path.join(srcdir, 'files')),
-    Dir(os.path.join(srcdir, 'images')),
     strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='dist',
+    upx=False,
+    name="DayQuay",
 )

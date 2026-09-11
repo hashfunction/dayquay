@@ -38,6 +38,7 @@ MENUBAR_XML = f"""\
         <separator/>
         <menuitem action="Export"/>
         <menuitem action="Backup"/>
+        <menuitem action="RestorePortableBackup"/>
         <menuitem action="Statistics"/>
         <separator/>
         <menuitem action="Quit"/>
@@ -63,8 +64,6 @@ MENUBAR_XML = f"""\
         <menuitem action="Help"/>
         <separator/>
         <menuitem action="GiveFeedback"/>
-        <menuitem action="Donate"/>
-        <menuitem action="Translate"/>
         <menuitem action="ReportBug"/>
         <separator/>
         <menuitem action="Info"/>
@@ -132,6 +131,14 @@ class MainMenuBar:
                     self.on_backup_activate,
                 ),
                 (
+                    "RestorePortableBackup",
+                    None,
+                    _("Restore Portable Backup…"),
+                    None,
+                    _("Inspect and restore a verified backup into a new journal folder"),
+                    self.on_restore_portable_backup_activate,
+                ),
+                (
                     "Statistics",
                     None,
                     _("S_tatistics"),
@@ -144,7 +151,7 @@ class MainMenuBar:
                     None,
                     _("Quit"),
                     "<Ctrl>q",
-                    _("Shutdown RedNotebook. It will not be sent to the tray."),
+                    _("Shutdown DayQuay. It will not be sent to the tray."),
                     self.main_window.on_quit_activate,
                 ),
                 ("Edit", None, _("_Edit")),
@@ -234,24 +241,8 @@ class MainMenuBar:
                     None,
                     _("Contents"),
                     "<Ctrl>h",
-                    _("Open the RedNotebook documentation"),
+                    _("Open the DayQuay documentation"),
                     self.on_help_menu_item_activate,
-                ),
-                (
-                    "Donate",
-                    None,
-                    _("Donate"),
-                    None,
-                    _("Support RedNotebook with a donation"),
-                    self.on_donate,
-                ),
-                (
-                    "Translate",
-                    None,
-                    _("Translate RedNotebook"),
-                    None,
-                    _("Help translate RedNotebook to your language"),
-                    self.on_translate,
                 ),
                 (
                     "ReportBug",
@@ -266,7 +257,7 @@ class MainMenuBar:
                     None,
                     _("Give Feedback"),
                     None,
-                    _("How can we improve RedNotebook?"),
+                    _("How can we improve DayQuay?"),
                     self.on_give_feedback,
                 ),
                 ("Info", None, _("About"), None, None, self.on_info_activate),
@@ -333,6 +324,11 @@ class MainMenuBar:
             _("Select an existing journal directory"),
             _("The directory should contain your journal's data files"),
         )
+
+    def on_restore_portable_backup_activate(self, widget):
+        from rednotebook.gui.restore import RestoreAssistant
+
+        RestoreAssistant(self.journal).run()
 
     def on_save_button_clicked(self, widget):
         self.journal.save_to_disk()
@@ -413,7 +409,7 @@ class MainMenuBar:
         html = self.journal.convert(
             help_text,
             "html",
-            headers=[_("RedNotebook Documentation"), info.version, ""],
+            headers=[_("DayQuay Documentation"), info.version, ""],
             options={"toc": 1},
         )
         utils.show_html_in_browser(html, os.path.join(temp_dir, "help.html"))
@@ -443,8 +439,8 @@ class MainMenuBar:
         self.info_dialog.set_authors(info.developers)
         self.info_dialog.add_credit_section(_("Contributors:"), [info.contributors_url])
         self.info_dialog.set_translator_credits(_("translator-credits"))
-        img_path = os.path.join(filesystem.image_dir, "rednotebook-icon", "rn-128.png")
+        img_path = os.path.join(filesystem.image_dir, "dayquay-icon", "dayquay-128.png")
         self.info_dialog.set_logo(GdkPixbuf.Pixbuf.new_from_file(img_path))
-        self.info_dialog.set_license_type(Gtk.License.GPL_2_0)
+        self.info_dialog.set_license_type(Gtk.License.GPL_3_0)
         self.info_dialog.run()
         self.info_dialog.hide()

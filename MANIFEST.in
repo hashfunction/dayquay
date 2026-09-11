@@ -6,7 +6,11 @@ include run
 include po/*.pot
 include po/*.po
 include rednotebook/images/*.png
-include rednotebook/images/rednotebook-icon/*.png
+include rednotebook/images/dayquay-icon/*.png
+include rednotebook/images/dayquay-icon/*.svg
+include LICENSES/*.txt
+include win/THIRD-PARTY-NOTICES.txt
+include win/windows-dependencies.json
 include rednotebook/files/*.cfg
 include rednotebook/files/*.glade
 include rednotebook/files/*.lang

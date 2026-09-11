@@ -94,6 +94,16 @@ else:
 print(f"Adding {base_dir} to sys.path")
 sys.path.insert(0, base_dir)
 
+from rednotebook import product
+
+
+try:
+    product.configure_bundled_enchant(base_dir)
+except product.ProductConfigurationError as err:
+    # Source checkouts can run without spellcheck. The frozen build itself
+    # fails closed through win/dayquay-runtime-hook.py when the DLL is absent.
+    logging.error(err)
+
 # ---------------------- Enable i18n -------------------------------
 from rednotebook.external import elibintl
 from rednotebook.util import filesystem
@@ -215,7 +225,7 @@ class Journal(Gtk.Application):
     def __init__(self, *args, **kwargs):
         super().__init__(
             *args,
-            application_id="app.rednotebook.RedNotebook",
+            application_id="com.trieflow.DayQuay",
             flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE,
             **kwargs,
         )
@@ -249,11 +259,12 @@ class Journal(Gtk.Application):
         self.config["firstStart"] = 0
         logging.info(f"First Start: {bool(self.is_first_start)}")
 
-        logging.info(f"RedNotebook version: {info.version}")
+        logging.info(f"DayQuay version: {info.version}")
         logging.info(filesystem.get_platform_info())
 
         self.actual_date = self.get_start_date()
 
+        self._offer_legacy_import()
         self.do_activate()
 
         journal_path = self.get_journal_path()
@@ -272,12 +283,56 @@ class Journal(Gtk.Application):
         self.archiver = backup.Archiver(self)
         GLib.idle_add(self.archiver.check_last_backup_date)
 
-        # Check for a new version
-        if self.config.read("checkForNewVersion") == 1:
-            utils.check_new_version(self, info.version, startup=True)
-
         # Automatically save the content after a period of time
         GLib.timeout_add_seconds(600, self.save_to_disk)
+
+    def _offer_legacy_import(self):
+        """Offer a one-time, explicit copy from the separate upstream profile."""
+        legacy_dir = product.legacy_profile_path(self.dirs.user_home_dir)
+        if self.dirs.portable or not self.is_first_start:
+            return
+        if not product.legacy_profile_available(legacy_dir):
+            return
+        dialog = Gtk.MessageDialog(
+            transient_for=None,
+            modal=True,
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.YES_NO,
+            text=_("Import an existing RedNotebook journal?"),
+        )
+        dialog.format_secondary_text(
+            _(
+                "DayQuay found a separate RedNotebook profile at %s. "
+                "Importing copies its journal, templates, and settings; "
+                "the original stays unchanged."
+            )
+            % legacy_dir
+        )
+        response = dialog.run()
+        dialog.destroy()
+        if response != Gtk.ResponseType.YES:
+            return
+        try:
+            imported = product.import_legacy_profile(legacy_dir, self.dirs.journal_user_dir)
+        except product.LegacyImportError as err:
+            error_dialog = Gtk.MessageDialog(
+                transient_for=None,
+                modal=True,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.CLOSE,
+                text=_("The RedNotebook journal was not imported."),
+            )
+            error_dialog.format_secondary_text(str(err))
+            error_dialog.run()
+            error_dialog.destroy()
+            return
+        logging.info("Explicitly imported %d files from %s", len(imported), legacy_dir)
+        self.config = configuration.Config(self.dirs.config_file)
+        for key, value in default_config.items():
+            if key not in self.config:
+                self.config[key] = value
+        self.config["firstStart"] = 0
+        self.config.save_state()
 
     def do_activate(self):
         if not self.frame:
@@ -445,8 +500,15 @@ class Journal(Gtk.Application):
             rel_data_dir = filesystem.get_relative_path(self.dirs.app_dir, data_dir)
             self.config["dataDir"] = rel_data_dir
 
+    def open_restored_journal(self, data_dir):
+        """Open a journal only after the restore domain has published it successfully."""
+        if not os.path.isdir(data_dir):
+            return False
+        self.open_journal(data_dir)
+        return self.dirs.data_dir == data_dir
+
     def set_frame_title(self):
-        parts = ["RedNotebook"]
+        parts = [info.program_name]
         if self.title != "data":
             parts.append(self.title)
         parts.append(dates.format_date(self.config.read("exportDateFormat"), self.date))

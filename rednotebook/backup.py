@@ -124,8 +124,13 @@ def write_archive(
     archive_file_name, files, base_dir="", arc_base_dir="", *, overwrite=False
 ):
     """Write a portable archive and publish it after full integrity verification."""
-    destination = Path(archive_file_name).resolve()
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    requested_destination = Path(archive_file_name)
+    if requested_destination.is_symlink():
+        raise InvalidBackupSource(
+            f'Backup destination is a symbolic link: "{requested_destination}"'
+        )
+    requested_destination.parent.mkdir(parents=True, exist_ok=True)
+    destination = requested_destination.parent.resolve() / requested_destination.name
     entries = [
         (member, source)
         for member, source in _source_entries(files, base_dir, arc_base_dir)
@@ -147,7 +152,8 @@ def write_archive(
                     _manifest(manifest_entries), ensure_ascii=False, separators=(",", ":")
                 ).encode("utf-8"),
             )
-        with staged.open("rb") as staged_file:
+        # Windows' CRT rejects fsync() on a read-only descriptor.
+        with staged.open("r+b") as staged_file:
             os.fsync(staged_file.fileno())
         with zipfile.ZipFile(staged) as archive:
             if failed_member := archive.testzip():
@@ -220,7 +226,7 @@ class Archiver:
         archive_files = []
         for root, _, files in os.walk(data_dir):
             for file in files:
-                if not file.endswith("~") and "RedNotebook-Backup" not in file:
+                if not file.endswith("~") and "DayQuay-Backup" not in file:
                     archive_files.append(os.path.join(root, file))
 
         write_archive(
@@ -254,7 +260,7 @@ class Archiver:
         else:
             name = "-" + self.journal.title
 
-        proposed_filename = f"RedNotebook-Backup{name}-{datetime.date.today()}.zip"
+        proposed_filename = f"DayQuay-Backup{name}-{datetime.date.today()}.zip"
         proposed_directory = self.journal.config.read("lastBackupDir", os.path.expanduser("~"))
 
         backup_dialog = self.journal.frame.builder.get_object("backup_dialog")

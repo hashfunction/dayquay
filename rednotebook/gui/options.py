@@ -26,7 +26,7 @@ from rednotebook import info
 from rednotebook.configuration import Config
 from rednotebook.gui import editor
 from rednotebook.gui.customwidgets import ActionButton, CustomComboBoxEntry, UrlButton
-from rednotebook.util import dates, filesystem, utils
+from rednotebook.util import dates, filesystem
 
 
 class Option(Gtk.HBox):
@@ -76,7 +76,7 @@ class AutostartOption(TickOption):
         self.autostart_file = os.path.expanduser("~/.config/autostart/rednotebook.desktop")
         autostart_file_exists = os.path.exists(self.autostart_file)
         TickOption.__init__(
-            self, _("Load RedNotebook at startup"), None, value=autostart_file_exists
+            self, _("Load DayQuay at startup"), None, value=autostart_file_exists
         )
 
     def get_value(self):
@@ -294,7 +294,7 @@ class OptionsManager:
                 TickOption(
                     _("Close to system tray"),
                     "closeToTray",
-                    tooltip=_("Closing the window will send RedNotebook to the tray"),
+                    tooltip=_("Closing the window will send DayQuay to the tray"),
                 )
             )
 
@@ -306,24 +306,9 @@ class OptionsManager:
             )
         )
 
-        # Check for new version
-        check_version_option = TickOption(
-            _("Check for new version at startup"), "checkForNewVersion"
-        )
-
         self.options.append(TickOption(_("Search as you type"), "instantSearch"))
 
         self.options.append(TickOption(_("Auto indent"), "autoIndent"))
-
-        def check_version_action(widget):
-            utils.check_new_version(self.main_window.journal, info.version, startup=False)
-            # Apply changes from dialog to options window
-            check = bool(self.journal.config.read("checkForNewVersion"))
-            check_version_option.check_button.set_active(check)
-
-        check_version_button = ActionButton(_("Check now"), check_version_action)
-        check_version_option.pack_start(check_version_button, False, False, 0)
-        self.options.append(check_version_option)
 
         self.options.extend(
             [

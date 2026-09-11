@@ -1,19 +1,9 @@
 # -----------------------------------------------------------------------
-# Copyright (c) 2008-2024 Jendrik Seipp
-#
-# RedNotebook is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# RedNotebook is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with RedNotebook; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# DayQuay modifications Copyright (c) 2026 Trieflow contributors.
+# Based on RedNotebook Copyright (c) 2008-2024 Jendrik Seipp.
+# The combined application is distributed under GPL-3.0-or-later because
+# it includes GPL-3.0-or-later spellcheck code. See LICENSES and
+# win/THIRD-PARTY-NOTICES.txt for complete notices.
 # -----------------------------------------------------------------------
 
 import argparse
@@ -26,32 +16,33 @@ if not hasattr(builtins, "_"):
         return string
 
 
-program_name = "RedNotebook"
-tagline = _("A Desktop Journal")
-version = "2.42"
-author = "Jendrik Seipp"
-author_mail = "jendrikseipp@gmail.com"
-copyright_ = "Copyright (c) 2008-2024 Jendrik Seipp"
-url = "https://rednotebook.app"
-downloads_url = "https://rednotebook.app/downloads.html"
-donation_url = "https://rednotebook.app/downloads.html"
-translation_url = "https://hosted.weblate.org/engage/rednotebook/"
-bug_url = "https://github.com/jendrikseipp/rednotebook/issues"
-version_url = (
-    "https://raw.githubusercontent.com/jendrikseipp/rednotebook/stable/rednotebook/info.py"
+program_name = "DayQuay"
+tagline = _("A calm, local desktop journal")
+version = "2.42.0+dayquay.1"
+author = "DayQuay contributors"
+author_mail = "support@trieflow.com"
+upstream_author = "Jendrik Seipp <jendrikseipp@gmail.com>"
+copyright_ = (
+    "DayQuay modifications Copyright © 2026 Trieflow contributors; "
+    "RedNotebook Copyright © 2008–2024 Jendrik Seipp"
 )
+url = "https://dayquay.trieflow.com"
+downloads_url = "https://dayquay.trieflow.com"
+donation_url = ""
+translation_url = ""
+bug_url = "https://dayquay.trieflow.com/support"
+version_url = ""
 contributors_url = "https://github.com/jendrikseipp/rednotebook/graphs/contributors"
-discussion_url = "https://github.com/jendrikseipp/rednotebook/discussions"
+discussion_url = "https://dayquay.trieflow.com/support"
 
-developers = ["{author} <{author_mail}>".format(**locals())]
-artists = ["Ciaran"]
+developers = [author, f"Upstream: {upstream_author}"]
+artists = ["DayQuay mark: Trieflow contributors", "Upstream artwork: Ciaran"]
 
 comments = _(
     """\
-RedNotebook is a modern desktop journal. It lets you format, tag and
-search your entries. You can also add pictures, links and customizable
-templates, spell check your notes, and export to plain text, HTML or
-Latex.
+DayQuay is a private desktop journal for dated entries, tags, attachments,
+search, and verified portable backups. Journal content stays on this device
+unless you explicitly export or copy it.
 """
 )
 
@@ -60,11 +51,10 @@ journal_path_help = """\
 The journal argument can be one of the following:
  - An absolute path (e.g. /home/username/myjournal)
  - A relative path (e.g. ../dir/myjournal)
- - The name of a directory under $HOME/.rednotebook/ (e.g. myjournal)
+ - The name of a directory under the DayQuay profile
 
-If the journal argument is omitted then the last session's journal
-path will be used. At the first program start, this defaults to
-"$HOME/.rednotebook/data".
+If omitted, DayQuay uses the last journal. A first launch defaults to the
+product-owned data directory (%APPDATA%\\DayQuay\\data on Windows).
 """
 
 
@@ -72,7 +62,7 @@ def get_commandline_parser():
     parser = argparse.ArgumentParser(
         description=comments, formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("--version", action="version", version=f"RedNotebook {version}")
+    parser.add_argument("--version", action="version", version=f"DayQuay {version}")
     parser.add_argument(
         "--date", dest="start_date", help="load specified date (format: YYYY-MM-DD)"
     )
@@ -83,11 +73,11 @@ def get_commandline_parser():
 desktop_file = """\
 [Desktop Entry]
 Version=1.0
-Name=RedNotebook
+Name=DayQuay
 GenericName=Journal
-Comment=Daily journal with calendar, templates and keyword search
-Exec=rednotebook
-Icon=rednotebook
+Comment=Local daily journal with verified portable backups
+Exec=dayquay
+Icon=dayquay
 Terminal=false
 Type=Application
 Categories=Office;

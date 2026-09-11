@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.trieflow.DayQuay</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>DayQuay</name>
+  <summary>Private local journal with verified portable backups</summary>
+  <description>
+    <p>DayQuay keeps dated entries, tags, attachments, templates, and search on your device.</p>
+    <p>Portable backups include a versioned checksum manifest and restore only into a newly verified journal folder.</p>
+  </description>
+  <url type="homepage">https://dayquay.trieflow.com</url>
+  <url type="bugtracker">https://dayquay.trieflow.com/support</url>
+  <url type="help">https://dayquay.trieflow.com/support</url>
+  <url type="vcs-browser">https://dayquay.trieflow.com/source</url>
+  <content_rating type="oars-1.1"/>
+  <translation type="gettext">rednotebook</translation>
+  <launchable type="desktop-id">dayquay.desktop</launchable>
+  <provides><binary>dayquay</binary></provides>
+</component>

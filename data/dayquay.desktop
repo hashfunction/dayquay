@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=DayQuay
+GenericName=Journal
+Comment=Local daily journal with verified portable backups
+Exec=dayquay
+Icon=dayquay
+Terminal=false
+Type=Application
+Categories=Office;
+StartupNotify=true
+X-GNOME-Gettext-Domain=rednotebook

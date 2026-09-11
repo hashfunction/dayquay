@@ -26,6 +26,8 @@ import sys
 
 import gi
 
+from rednotebook import product
+
 
 ENCODING = sys.getfilesystemencoding() or locale.getlocale()[1] or "UTF-8"
 LANGUAGE = locale.getdefaultlocale()[0]
@@ -221,7 +223,7 @@ else:
     locale_dir = os.path.join(sys.prefix, "share", "locale")
 
 image_dir = os.path.join(app_dir, "images")
-frame_icon_dir = os.path.join(image_dir, "rednotebook-icon")
+frame_icon_dir = os.path.join(image_dir, "dayquay-icon")
 files_dir = os.path.join(app_dir, "files")
 
 user_home_dir = os.path.expanduser("~")
@@ -257,10 +259,14 @@ class Filenames(dict):
 
     def get_user_dir(self, config):
         if not (custom := config.read("userDir")):
-            return (
-                os.path.join(self.app_dir, "user")
-                if self.portable
-                else os.path.join(self.user_home_dir, ".rednotebook")
+            return str(
+                product.default_user_dir(
+                    app_dir=self.app_dir,
+                    home_dir=self.user_home_dir,
+                    platform_name=sys.platform,
+                    environment=os.environ,
+                    portable=self.portable,
+                )
             )
         # If a custom user dir has been set,
         # construct the absolute path (if not absolute already)
@@ -278,7 +284,7 @@ class Filenames(dict):
             "temp_dir": "tmp",
             "default_data_dir": "data",
             "config_file": "configuration.cfg",
-            "log_file": "rednotebook.log",
+            "log_file": "dayquay.log",
         }
 
         if attr in user_paths:

@@ -41,7 +41,7 @@ help_par = _('The example text and more documentation is available under "Help" 
 
 # Translators: noun
 preview = _("Preview")
-preview1 = _("There are two modes in RedNotebook, the __edit__ mode and the __preview__ mode.")
+preview1 = _("There are two modes in DayQuay, the __edit__ mode and the __preview__ mode.")
 preview2 = _("Click on Edit above to see the difference.")
 preview_par = " ".join([preview1, preview2])
 
@@ -56,7 +56,7 @@ example_entry = _(
 )
 
 templates = _("Templates")
-temp1 = _("RedNotebook supports templates.")
+temp1 = _("DayQuay supports templates.")
 temp2 = _('Click on the arrow next to the "Template" button to see some options.')
 temp3 = _(
     """You can have one template for every day
@@ -166,7 +166,7 @@ instead of "-" you can create a **numbered list**:
 
 == Images, Files and Links ==
 
-RedNotebook lets you insert images, files and links into your entries.
+DayQuay lets you insert images, files and links into your entries.
 To do so, select the appropriate option in the "Insert" pull-down menu
 above the main text field. The text will be inserted at the current
 cursor position. Note that currently, the things you insert are only
@@ -198,7 +198,7 @@ will be shown as
 The files 1.txt to 7.txt in the template directory correspond to the
 templates for each day of the week. The current weekday's template will
 be filled into the text area when you click on "Template". You can open
-the template files from inside RedNotebook by opening the menu next to
+the template files from inside DayQuay by opening the menu next to
 the "Template" button.
 
 
@@ -213,7 +213,7 @@ You can search for text or dates (e.g. 2014, 2014-01, 2014-01-19).
 == Clouds ==[clouds]
 
 The most frequently used words will appear in the word cloud on the
-left. Its contents are only refreshed when RedNotebook starts and when
+left. Its contents are only refreshed when DayQuay starts and when
 the journal is saved.
 
 If a word appears in the cloud that you don't want to see there,
@@ -233,7 +233,7 @@ the blacklist. This will filter out all words.
 
 == Spellcheck ==
 
-RedNotebook supports spellchecking your entries. This feature needs the
+DayQuay supports spellchecking your entries. This feature needs the
 pyenchant library (``python-enchant`` on Ubuntu). Spellchecking can be
 turned on and off by toggling the menu item in the "Edit" menu.
 
@@ -242,11 +242,11 @@ text area (in edit mode) and choosing it from the submenu "Languages".
 
 === Adding custom dictionaries under Windows ===
 
-Use Hunspell dictionaries (not Aspell) with RedNotebook on Windows:
+Use Hunspell dictionaries (not Aspell) with DayQuay on Windows:
 
 + Download the desired language files (.aff and .dic) from a Hunspell source, e.g., https://github.com/wooorm/dictionaries.
-+ Place both files into <RedNotebook Dir>\\share\\enchant\\myspell\\.
-+ Restart RedNotebook and pick the language via right-click → Languages in the editor.
++ Place both files into <DayQuay Dir>\\share\\enchant\\myspell\\.
++ Restart DayQuay and pick the language via right-click → Languages in the editor.
 
 
 Notes:
@@ -289,7 +289,7 @@ Make sure to type all links with the full path including the protocol:
 
 == Synchronize across multiple computers ==[sync]
 
-Syncing RedNotebook with a remote server is easy. You can either use a
+Syncing DayQuay with a remote server is easy. You can either use a
 cloud service like Dropbox or save your journal to your own server.
 
 === Dropbox ===
@@ -307,7 +307,7 @@ use the feature you have to connect your computer to the remote server.
 This is most easily done in Nautilus by clicking on "File" -> "Connect
 to Server". Be sure to add a bookmark for the server. This way you can
 see your server in Nautilus at all times on the left side. The next
-time you open RedNotebook you will find your server in the "New",
+time you open DayQuay you will find your server in the "New",
 "Open" and "Save As" dialogs. There you can select a new folder on the
 server for your journal.
 
@@ -317,7 +317,7 @@ If you have your own server, you might want to try
 [Conduit http://www.conduit-project.org] or
 [Unison http://www.cis.upenn.edu/~bcpierce/unison]. To sync or backup
 your journal you have to sync your journal folder (default is
-"$HOME/.rednotebook/data/") with a folder on your server.
+"$HOME/.dayquay/data/") with a folder on your server.
 
 Obviously you have to be connected to the internet to use that feature.
 Be sure to backup your data regularly if you plan to save your content
@@ -326,7 +326,7 @@ involved.
 
 === Dual boot ===
 
-Using RedNotebook from multiple operating systems on the same computer
+Using DayQuay from multiple operating systems on the same computer
 is also possible. Save your journal with "Journal->Save As" in a
 directory all systems can access. Then on the other systems you can
 open the journal with "Journal->Open".
@@ -339,13 +339,13 @@ to share your settings between the systems.
 
 == Portable mode ==
 
-RedNotebook can be run in portable mode. In this mode, the template
+DayQuay can be run in portable mode. In this mode, the template
 directory, the configuration and the log file are saved in the
 application directory instead of in the home directory. Additionally,
 the path to the last opened journal is remembered relatively to the
 application directory.
 
-To use RedNotebook on a flash drive on Windows, run the installer and
+To use DayQuay on a flash drive on Windows, run the installer and
 select a directory on your USB drive as the installation directory.
 You probably don't need the "Start Menu Group" and Desktop icons in
 portable mode.
@@ -356,7 +356,7 @@ the default.cfg file set portable=1.
 
 == Convert Latex output to PDF ==
 
-In recent RedNotebook versions you can export your journal directly to
+In recent DayQuay versions you can export your journal directly to
 PDF, so this section may be obsolete. However, some people may prefer
 to export their journal to Latex first and convert it to PDF later.
 Here is how you do it:
@@ -431,18 +431,18 @@ entire home partition. I would recommend to do that to anyone who
 wishes to protect her/his diary and all other personal files. This
 method is especially useful for laptop users, because their computers
 are more likely to be stolen. If you encrypt your home partition all
-RedNotebook data will be encrypted, too.
+DayQuay data will be encrypted, too.
 
 
 == Dark Mode ==
 
-RedNotebook follows your system's theme settings by default. Here are
+DayQuay follows your system's theme settings by default. Here are
 platform-specific instructions for enabling dark mode:
 
 === Linux (GNOME/GTK environments) ===
 
 On most modern Linux distributions with GNOME, you can enable dark mode
-for GTK applications like RedNotebook:
+for GTK applications like DayQuay:
 
 1. **Using GNOME Tweaks (recommended):**
    - Install ``gnome-tweaks`` if not already installed
@@ -451,22 +451,22 @@ for GTK applications like RedNotebook:
    - Change "Legacy Applications" to:
      - "Adwaita-dark" (older systems)
      - "HighContrastInverse" (Debian 13/Trixie and newer)
-   - Restart RedNotebook
+   - Restart DayQuay
 
 2. **Using environment variables:**
    - Set ``GTK_THEME=Adwaita:dark`` or ``GTK_THEME=Adwaita-dark``
-   - Start RedNotebook from terminal: ``GTK_THEME=Adwaita-dark rednotebook``
+   - Start DayQuay from terminal: ``GTK_THEME=Adwaita-dark rednotebook``
    - Or add to your shell profile to make it permanent
 
 === Flatpak installations ===
 
-For RedNotebook installed via Flatpak:
+For DayQuay installed via Flatpak:
 
 1. Install Flatseal (a permissions manager for Flatpak)
 2. Open Flatseal
 3. Navigate to "All Applications" (global settings)
 4. In the "Environment" section, add: ``GTK_THEME=Adwaita-dark``
-5. Restart RedNotebook
+5. Restart DayQuay
 
 Alternatively, you can use the command line:
 ``flatpak override --user --env=GTK_THEME=Adwaita-dark``
@@ -485,10 +485,10 @@ dark theme names include: Adwaita-dark, Adwaita:dark, HighContrastInverse.
 == Appearance on Windows ==
 
 You can use a GTK3 compatible theme to change the appearance of your
-RedNotebook installation. Once you find a GTK3 compatible theme, copy
-the theme into ``<RedNotebook Dir>\\share\\themes``, e.g.,
-``C:\\Program Files (x86)\\RedNotebook\\share\\themes`` and then edit
-``C:\\Program Files (x86)\\RedNotebook\\etc\\gtk-3.0\\settings.ini`` to
+DayQuay installation. Once you find a GTK3 compatible theme, copy
+the theme into ``<DayQuay Dir>\\share\\themes``, e.g.,
+``C:\\Program Files (x86)\\DayQuay\\share\\themes`` and then edit
+``C:\\Program Files (x86)\\DayQuay\\etc\\gtk-3.0\\settings.ini`` to
 comment out the current theme setting and add your own.
 
 For example, for using the [FlatStudio https://www.gnome-look.org/p/1013733/]
@@ -496,7 +496,7 @@ theme, download the ``*.tar.gz``
 file and extract it. Out of the four themes -- FlatStudio,
 FlatStudioDark, FlatStudioLight, FlatStudioGray -- pick one of the
 folders (e.g., FlatStudioDark) and copy it into
-``<RedNotebook Dir>\\share\\themes``. Then edit
+``<DayQuay Dir>\\share\\themes``. Then edit
 ``etc\\gtk-3.0\\settings.ini`` so it looks similar to this:
 
 ```
@@ -505,12 +505,12 @@ folders (e.g., FlatStudioDark) and copy it into
 gtk-theme-name=FlatStudioDark
 ```
 
-Finally, relaunch RedNotebook.
+Finally, relaunch DayQuay.
 
 
 Alternative 1: set GTK_THEME=FlatStudioDark in user environment variables.
 This overrides the theme set in ``settings.ini`` and persists even after
-reinstalling RedNotebook. However, this might change the theme of every GTK
+reinstalling DayQuay. However, this might change the theme of every GTK
 application on Windows.
 
 Alternative 2: set GTK_THEME=FlatStudioDark in the
@@ -518,7 +518,7 @@ Alternative 2: set GTK_THEME=FlatStudioDark in the
 
 ```
 C:\\Windows\\System32\\cmd.exe /c "SET GTK_THEME=FlatStudioDark&& ^
-START /D ^"C:\\Program Files (x86)\\RedNotebook^" rednotebook.exe"
+START /D ^"C:\\Program Files (x86)\\DayQuay^" DayQuay.exe"
 ```
 
 Then set application to ``Run: Minimized`` (in application shortcut properties).
@@ -534,7 +534,7 @@ app but it does change the shortcut icon to a cmd icon, as expected.
 
 If you'd like to see the week numbers in the calendar, you can set the
 value of weekNumbers to 1 in the configuration file. This file normally
-resides at $HOME/.rednotebook/configuration.cfg.
+resides at $HOME/.dayquay/configuration.cfg.
 
 === Language ===
 
@@ -574,7 +574,7 @@ title like 0.0.0.0.1
 
 === Math Formulas ===
 
-RedNotebook supports mathematical formulas that render in preview (via MathJax)
+DayQuay supports mathematical formulas that render in preview (via MathJax)
 and in LaTeX exports:
 
 **Display math** (centered on its own line):
@@ -643,7 +643,7 @@ resulting list chronologically by pressing the "Date" button.
 
 == Data format ==
 
-The content of a RedNotebook journal is saved in a directory with many
+The content of a DayQuay journal is saved in a directory with many
 files, not just one file. The directory name is used as a name for the
 journal.
 
@@ -685,7 +685,7 @@ mailing list or contact me directly.
 == Bugs ==
 
 There is no software without bugs, so if you encounter one please drop
-me a note. This way RedNotebook can get better, not only for you, but
+me a note. This way DayQuay can get better, not only for you, but
 for all users.
 
 Bug reports should go [here {bug_url}],

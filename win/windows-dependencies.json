@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 1,
+  "environment": "MSYS2 UCRT64",
+  "qualifiedOn": "2026-09-11",
+  "qualificationRun": "hashfunction/dayquay/actions/runs/34574300104",
+  "status": "native-runtime-qualified-not-packaged",
+  "packages": [
+    {
+      "name": "mingw-w64-ucrt-x86_64-python",
+      "version": "3.14.7-1",
+      "sha256": "f409676214aa3d65260761826e1cc4bc356f05bd2d1ccabc8497d513ff86c425",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-python-3.14.7-1-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-python",
+      "license": "PSF-2.0"
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-python-gobject",
+      "version": "3.58.0-2",
+      "sha256": "ae4da67ab4eb53fcb9c1d37d61250488d17f9dff8f47d21b617208314f47c592",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-python-gobject-3.58.0-2-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-python-gobject",
+      "license": "LGPL-2.1-or-later"
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-python-cairo",
+      "version": "1.29.1-2",
+      "sha256": "cb23d50ec7468b1f34da568aa6a6a950cdfdca7578bac510bce96decf3f35550",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-python-cairo-1.29.1-2-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-python-cairo",
+      "license": "LGPL-2.1-only OR MPL-1.1"
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-gtk3",
+      "version": "3.24.52-1",
+      "sha256": "1cdcac269932b5ac613ae6df0c097c8593029ef5d8651e7471ab252922dc8e97",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-gtk3-3.24.52-1-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-gtk3",
+      "license": "LGPL-2.1-or-later"
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-gtksourceview4",
+      "version": "4.8.4-3",
+      "sha256": "119e31bbb40060c18c0be86cd3a37d7f1c3a0481897b1f4fdbc070da24086ef9",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-gtksourceview4-4.8.4-3-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-gtksourceview4",
+      "license": "LGPL-2.1-or-later"
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-enchant",
+      "version": "2.8.19-2",
+      "sha256": "68df2b994739d0c99f8615158f295e6763f3e64dd3ca7701fe965658299be2b9",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-enchant-2.8.19-2-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-enchant",
+      "license": "LGPL-2.1-or-later"
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-hunspell-en",
+      "version": "2026.02.25-1",
+      "sha256": "e9f097282eef0665cb6e2c679d560085f50fbdd6de1e132e50a47ef9d85e1e45",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-hunspell-en-2026.02.25-1-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-hunspell-en",
+      "license": "LGPL and SCOWL"
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-python-yaml",
+      "version": "6.0.3-3",
+      "sha256": "7b4a75e2605c707a999594c863f8eb95c6093c45a947690bccf37e55391456fe",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-python-yaml-6.0.3-3-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-python-yaml",
+      "license": "MIT"
+    },
+    {
+      "name": "mingw-w64-ucrt-x86_64-pyinstaller",
+      "version": "6.22.1-1",
+      "sha256": "525ea247f3028e1d7a233757416c54ca72a9f5f173f458a7089df3390a681521",
+      "archive": "https://mirror.msys2.org/mingw/ucrt64/mingw-w64-ucrt-x86_64-pyinstaller-6.22.1-1-any.pkg.tar.zst",
+      "source": "https://github.com/msys2/MINGW-packages/tree/master/mingw-w64-pyinstaller",
+      "license": "GPL-2.0-or-later WITH Bootloader-exception"
+    },
+    {
+      "name": "PyEnchant",
+      "version": "3.3.0",
+      "sha256": "825288246b5debc9436f91967650974ef0d5636458502619e322c476f1283891",
+      "archive": "https://files.pythonhosted.org/packages/36/ad/64925c937e41be75c7067c85757b3d45b148e9111187b37693269f583156/pyenchant-3.3.0.tar.gz",
+      "source": "https://github.com/pyenchant/pyenchant/tree/v3.3.0",
+      "license": "LGPL-2.1-or-later"
+    }
+  ],
+  "transitiveEvidence": "The CI artifact msys2-cache-sha256.txt records every installed UCRT64 package archive and signature; native-installed-versions.txt must exactly match native-downloaded-versions.txt."
+}

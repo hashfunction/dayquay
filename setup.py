@@ -17,9 +17,9 @@
 # -----------------------------------------------------------------------
 
 """
-This is the installation script for RedNotebook.
+This is the installation script for DayQuay.
 
-To install RedNotebook, run "pip install ." (note the dot).
+To install DayQuay, run "pip install ." (note the dot).
 """
 
 import shutil
@@ -69,30 +69,27 @@ class install(_install):
             shutil.copy2(lang_file, dest_dir / "rednotebook.mo")
 
 
-installation_note = """\
-Go to https://rednotebook.app/downloads.html to get the
-latest pre-packaged version for your operating system.
-"""
+installation_note = "See https://dayquay.trieflow.com for supported packages."
 
 
 parameters = {
-    "name": "rednotebook",
+    "name": "dayquay",
     "version": info.version,
     "description": "Graphical daily journal with calendar, templates and keyword searching",
     "long_description": info.comments + "\n\n" + installation_note,
     "author": info.author,
     "author_email": info.author_mail,
-    "maintainer": info.author,
+    "maintainer": "Trieflow",
     "maintainer_email": info.author_mail,
     "url": info.url,
-    "license": "GPL",
+    "license": "GPL-3.0-or-later",
     "keywords": "journal, diary",
     "cmdclass": {"build_py": build_py, "install": install},
     "install_requires": ["PyGObject", "PyYAML"],
     "extras_require": {"spellcheck": ["pyenchant"]},
     "entry_points": {
         "gui_scripts": [
-            "rednotebook = rednotebook.journal:main",
+            "dayquay = rednotebook.journal:main",
         ],
     },
     "packages": [
@@ -104,8 +101,8 @@ parameters = {
     "package_data": {
         "rednotebook": [
             "images/*.png",
-            "images/rednotebook-icon/*.png",
-            "images/rednotebook-icon/rednotebook.svg",
+            "images/dayquay-icon/*.png",
+            "images/dayquay-icon/dayquay.svg",
             "files/*.cfg",
             "files/*.glade",
             "files/*.lang",
@@ -113,12 +110,12 @@ parameters = {
         ]
     },
     "data_files": [
-        ("share/applications", ["data/rednotebook.desktop"]),
+        ("share/applications", ["data/dayquay.desktop"]),
         (
             "share/icons/hicolor/scalable/apps",
-            ["rednotebook/images/rednotebook-icon/rednotebook.svg"],
+            ["rednotebook/images/dayquay-icon/dayquay.svg"],
         ),
-        ("share/metainfo", ["data/rednotebook.appdata.xml"]),
+        ("share/metainfo", ["data/dayquay.appdata.xml"]),
     ],
 }
 

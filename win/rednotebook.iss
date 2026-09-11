@@ -5,20 +5,20 @@
 ; NOTE: The value of AppId uniquely identifies this application.
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{82A7E9C3-D3F3-4B85-9AC3-D0E011D19E50}
-AppName=RedNotebook
+AppId={{7AA55677-54D3-4A21-95E3-763A96694420}
+AppName=DayQuay
 AppVersion={#REDNOTEBOOK_VERSION}
-AppVerName=RedNotebook {#REDNOTEBOOK_VERSION}
-AppPublisher=Jendrik Seipp
-AppPublisherURL=https://rednotebook.app
-AppSupportURL=https://rednotebook.app
-AppUpdatesURL=https://rednotebook.app
-DefaultDirName={pf}\RedNotebook
-DefaultGroupName=RedNotebook
+AppVerName=DayQuay {#REDNOTEBOOK_VERSION}
+AppPublisher=Trieflow
+AppPublisherURL=https://dayquay.trieflow.com
+AppSupportURL=https://dayquay.trieflow.com/support
+AppUpdatesURL=https://dayquay.trieflow.com
+DefaultDirName={autopf}\DayQuay
+DefaultGroupName=DayQuay
 AllowNoIcons=yes
 OutputDir=C:\
-OutputBaseFilename=rednotebook
-SetupIconFile=rednotebook.ico
+OutputBaseFilename=DayQuay-Setup
+SetupIconFile=dayquay.ico
 Compression=lzma2
 SolidCompression=yes
 ;DisableWelcomePage=yes
@@ -61,27 +61,27 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 ;Components: everything;
 
 ;Startup
-name: "startupicon"; Description: "Run RedNotebook on Startup"; GroupDescription: "Additional tasks:"; MinVersion: 4,4; Flags: unchecked;
+name: "startupicon"; Description: "Run DayQuay on Startup"; GroupDescription: "Additional tasks:"; MinVersion: 4,4; Flags: unchecked;
 
 [Files]
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
-Source: "C:\\dist\*"; Excludes: "*.log,*.a,*.def,*.h,*.lib,*.pc,Thumbs.db"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\\DayQuay\*"; Excludes: "*.log,*.a,*.def,*.h,*.lib,*.pc,Thumbs.db"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ;Source: "portable.cfg"; DestDir: "{app}\files"; DestName: "default.cfg"; Flags: ignoreversion; Components: portablecfgfile
 
 [Icons]
-Name: "{group}\RedNotebook"; Filename: "{app}\rednotebook.exe";
+Name: "{group}\DayQuay"; Filename: "{app}\DayQuay.exe";
 ;Components: everything;
-Name: "{group}\{cm:UninstallProgram,RedNotebook}"; Filename: "{uninstallexe}";
+Name: "{group}\{cm:UninstallProgram,DayQuay}"; Filename: "{uninstallexe}";
 ;Components: everything;
-Name: "{commondesktop}\RedNotebook"; Filename: "{app}\rednotebook.exe"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\RedNotebook"; Filename: "{app}\rednotebook.exe"; Tasks: quicklaunchicon
+Name: "{commondesktop}\DayQuay"; Filename: "{app}\DayQuay.exe"; Tasks: desktopicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\DayQuay"; Filename: "{app}\DayQuay.exe"; Tasks: quicklaunchicon
 
 ;Startup
-Name: "{userstartup}\RedNotebook"; Filename: "{app}\rednotebook.exe"; Tasks: startupicon; workingdir: "{app}"
+Name: "{userstartup}\DayQuay"; Filename: "{app}\DayQuay.exe"; Tasks: startupicon; workingdir: "{app}"
 
 
 [Run]
-Filename: "{app}\rednotebook.exe"; Description: "{cm:LaunchProgram,RedNotebook}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\DayQuay.exe"; Description: "{cm:LaunchProgram,DayQuay}"; Flags: nowait postinstall skipifsilent
 
 
 [Code]

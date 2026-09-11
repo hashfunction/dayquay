@@ -1,4 +1,4 @@
-name: DayQuay native dependency qualification
+name: DayQuay Windows qualification
 on:
   workflow_dispatch:
   push:
@@ -50,13 +50,22 @@ jobs:
           echo "PYENCHANT_LIBRARY_PATH=$(cygpath -m "$MINGW_PREFIX/bin/libenchant-2-2.dll")" >> "$GITHUB_ENV"
       - name: Verify real GTK3, GtkSource4 and spellcheck runtime
         run: python win/dayquay-runtime-probe.py
-      - name: Test upstream baseline before feature implementation
+      - name: Test native-backed application workflows
         run: python -m pytest tests -q --junitxml=build-evidence/baseline-tests.xml
-      - name: Preserve private qualification evidence
+      - name: Build native application directory
+        run: |
+          MINGW_PREFIX="$(cygpath -m "$MINGW_PREFIX")" python -m PyInstaller --clean --noconfirm win/rednotebook.spec
+      - name: Verify packaged native main window
+        shell: pwsh
+        run: ./win/test-native-startup.ps1
+      - name: Preserve qualification metadata only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: DayQuay-native-qualification
-          path: build-evidence/
+          path: |
+            build-evidence/*.json
+            build-evidence/*.txt
+            build-evidence/*.xml
           retention-days: 14
           if-no-files-found: error
