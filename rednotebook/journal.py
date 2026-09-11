@@ -327,12 +327,12 @@ class Journal(Gtk.Application):
             error_dialog.destroy()
             return
         logging.info("Explicitly imported %d files from %s", len(imported), legacy_dir)
-        self.config = configuration.Config(self.dirs.config_file)
-        for key, value in default_config.items():
-            if key not in self.config:
-                self.config[key] = value
+        imported_config = configuration.Config(
+            product.legacy_settings_path(self.dirs.journal_user_dir)
+        )
+        self.config.update(imported_config)
         self.config["firstStart"] = 0
-        self.config.save_state()
+        self.config.save_to_disk()
 
     def do_activate(self):
         if not self.frame:

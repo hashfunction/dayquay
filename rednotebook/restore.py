@@ -1,4 +1,3 @@
-import ctypes
 import errno
 import hashlib
 import json
@@ -6,20 +5,24 @@ import os
 import re
 import shutil
 import stat
-import sys
 import tempfile
 import unicodedata
+import urllib.parse
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-from rednotebook import backup, storage
+from rednotebook import atomic, backup, storage
 
 
 MANIFEST_MAX_BYTES = 8 * 1024 * 1024
 COPY_CHUNK_SIZE = 1024 * 1024
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
 WINDOWS_DRIVE_PATTERN = re.compile(r"^[A-Za-z]:")
+QUOTED_LOCAL_TARGET_PATTERN = re.compile(
+    r'""(?P<target>[^"\r\n]+?)""(?P<extension>\.(?:png|jpe?g|gif|eps|bmp|svg))?',
+    flags=re.IGNORECASE,
+)
 WINDOWS_RESERVED_NAMES = {
     "CON",
     "PRN",
@@ -67,6 +70,7 @@ class BackupInspection:
 class JournalValidation:
     month_count: int
     attachment_count: int
+    referenced_attachment_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -229,70 +233,83 @@ def inspect_backup(path, limits=DEFAULT_LIMITS, *, verify_hashes=True):
     )
 
 
+def _local_attachment_targets(text):
+    for match in QUOTED_LOCAL_TARGET_PATTERN.finditer(text):
+        target = match.group("target")
+        if extension := match.group("extension"):
+            target += extension
+        lowered = target.lower()
+        if lowered.startswith(("http://", "https://", "ftp://", "irc://")):
+            continue
+        if lowered.startswith("file:///#") or re.fullmatch(r"\d{4}-\d{2}-\d{2}", target):
+            continue
+        if lowered.startswith("file://"):
+            target = target[len("file://") :]
+        elif "://" in target:
+            continue
+        yield urllib.parse.unquote(target)
+
+
+def _validate_attachment_references(directory, months):
+    referenced = set()
+    for month in months.values():
+        for day in month.days.values():
+            for target in _local_attachment_targets(day.text):
+                drive_candidate = target[1:] if target.startswith("/") else target
+                if (
+                    not target
+                    or target.startswith("/")
+                    or WINDOWS_DRIVE_PATTERN.match(drive_candidate)
+                    or "\\" in target
+                ):
+                    raise InvalidBackup(
+                        f"Journal contains an external local attachment that is not portable: {target}"
+                    )
+                parts = target.split("/")
+                if any(part in ("", ".", "..") for part in parts):
+                    raise InvalidBackup(
+                        f"Journal contains an unsafe local attachment reference: {target}"
+                    )
+                candidate = directory.joinpath(*parts)
+                try:
+                    candidate.relative_to(directory)
+                except ValueError as exc:
+                    raise InvalidBackup(
+                        f"Journal attachment escapes the portable journal: {target}"
+                    ) from exc
+                if candidate.is_symlink() or not candidate.is_file():
+                    raise InvalidBackup(f"Journal referenced attachment is missing: {target}")
+                referenced.add(candidate)
+    return len(referenced)
+
+
 def validate_journal_directory(path):
     directory = Path(path)
     if not directory.is_dir() or directory.is_symlink():
         raise InvalidBackup(f"Restored journal is not a real directory: {directory}")
     attachment_count = 0
     for item in directory.rglob("*"):
-        if item.is_symlink() or not (item.is_file() or item.is_dir()):
+        if item.is_symlink():
+            raise InvalidBackup(f"Restored journal contains a symbolic link: {item}")
+        if not (item.is_file() or item.is_dir()):
             raise InvalidBackup(f"Restored journal contains an unsafe file: {item}")
-        if item.is_file() and not re.fullmatch(r"\d{4}-\d{2}\.txt", item.name):
+        is_month = item.parent == directory and re.fullmatch(r"\d{4}-\d{2}\.txt", item.name)
+        if item.is_file() and not is_month:
             attachment_count += 1
     try:
         months = storage.load_all_months_from_disk(directory, raise_on_error=True)
     except (storage.InvalidJournalData, OSError, ValueError) as exc:
         raise InvalidBackup(f"Restored journal data is invalid: {exc}") from exc
-    return JournalValidation(month_count=len(months), attachment_count=attachment_count)
+    referenced_attachment_count = _validate_attachment_references(directory, months)
+    return JournalValidation(
+        month_count=len(months),
+        attachment_count=attachment_count,
+        referenced_attachment_count=referenced_attachment_count,
+    )
 
 
 def _atomic_rename_directory_no_replace(source, destination):
-    source = Path(source)
-    destination = Path(destination)
-    if sys.platform == "win32":
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        move_file = kernel32.MoveFileExW
-        move_file.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_uint32]
-        move_file.restype = ctypes.c_int
-        if not move_file(str(source), str(destination), 0):
-            error = ctypes.get_last_error()
-            if error in (80, 183):
-                raise FileExistsError(error, os.strerror(error), str(destination))
-            raise OSError(error, f"Atomic directory publish failed: {destination}")
-        return
-    libc = ctypes.CDLL(None, use_errno=True)
-    if sys.platform == "darwin":
-        try:
-            rename = libc.renamex_np
-        except AttributeError as exc:
-            raise NotImplementedError("Atomic no-replace directory rename is unavailable") from exc
-        rename.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
-        rename.restype = ctypes.c_int
-        result = rename(os.fsencode(source), os.fsencode(destination), 0x00000004)
-    elif sys.platform.startswith("linux"):
-        try:
-            rename = libc.renameat2
-        except AttributeError as exc:
-            raise NotImplementedError("Atomic no-replace directory rename is unavailable") from exc
-        rename.argtypes = [
-            ctypes.c_int,
-            ctypes.c_char_p,
-            ctypes.c_int,
-            ctypes.c_char_p,
-            ctypes.c_uint,
-        ]
-        rename.restype = ctypes.c_int
-        result = rename(-100, os.fsencode(source), -100, os.fsencode(destination), 1)
-    else:
-        raise NotImplementedError("Atomic no-replace directory rename is unsupported")
-    if result == 0:
-        return
-    error = ctypes.get_errno()
-    if error in (errno.EEXIST, errno.ENOTEMPTY):
-        raise FileExistsError(error, os.strerror(error), str(destination))
-    if error in (errno.ENOSYS, errno.EINVAL):
-        raise NotImplementedError("Atomic no-replace directory rename is unavailable")
-    raise OSError(error, os.strerror(error), str(destination))
+    atomic.rename_directory_no_replace(source, destination)
 
 
 def restore_backup(path, destination, inspection):

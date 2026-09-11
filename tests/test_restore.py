@@ -212,3 +212,45 @@ def test_month_loader_bounds_bytes_and_nesting(tmp_path):
     month.write_text(yaml.safe_dump({1: {"text": "hello", "deep": nested}}), encoding="utf-8")
     with pytest.raises(storage.InvalidJournalData, match="nesting"):
         storage.load_month_from_disk(month, 2026, 9)
+
+
+def test_validation_rejects_external_reference_created_by_insert_file(tmp_path):
+    journal = tmp_path / "journal"
+    journal.mkdir()
+    external = tmp_path / "external.pdf"
+    external.write_bytes(b"pdf")
+    text = f'[external.pdf ""file://{external}""]'
+    (journal / "2026-09.txt").write_text(
+        yaml.safe_dump({1: {"text": text}}), encoding="utf-8"
+    )
+
+    with pytest.raises(restore.InvalidBackup, match="external.*not portable"):
+        restore.validate_journal_directory(journal)
+
+
+def test_validation_rejects_missing_relative_attachment(tmp_path):
+    journal = tmp_path / "journal"
+    journal.mkdir()
+    text = '[missing.pdf ""attachments/missing.pdf""]'
+    (journal / "2026-09.txt").write_text(
+        yaml.safe_dump({1: {"text": text}}), encoding="utf-8"
+    )
+
+    with pytest.raises(restore.InvalidBackup, match="referenced attachment is missing"):
+        restore.validate_journal_directory(journal)
+
+
+def test_validation_counts_existing_referenced_attachment(tmp_path):
+    journal = tmp_path / "journal"
+    attachment = journal / "attachments" / "report.pdf"
+    attachment.parent.mkdir(parents=True)
+    attachment.write_bytes(b"pdf")
+    text = '[report.pdf ""attachments/report.pdf""]'
+    (journal / "2026-09.txt").write_text(
+        yaml.safe_dump({1: {"text": text}}), encoding="utf-8"
+    )
+
+    validation = restore.validate_journal_directory(journal)
+
+    assert validation.attachment_count == 1
+    assert validation.referenced_attachment_count == 1

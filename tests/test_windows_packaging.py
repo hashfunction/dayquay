@@ -89,3 +89,52 @@ def test_local_gtksource_hook_collects_version_four_resources(monkeypatch):
     assert api.datas == ["typelib", ("source/gtksourceview-4", "share/gtksourceview-4")]
     assert api.binaries == ["binary"]
     assert api.imports == ("hidden",)
+
+
+def test_local_girepository_hook_collects_version_three_runtime(monkeypatch):
+    calls = []
+
+    class FakeModuleInfo:
+        def __init__(self, name, version, hook_api=None):
+            calls.append((name, version, hook_api))
+            self.available = True
+
+        def collect_typelib_data(self):
+            return (["girepository-binary"], ["girepository-typelib"], ["dependency"])
+
+    fake_gi = types.ModuleType("PyInstaller.utils.hooks.gi")
+    fake_gi.GiModuleInfo = FakeModuleInfo
+    monkeypatch.setitem(sys.modules, "PyInstaller", types.ModuleType("PyInstaller"))
+    monkeypatch.setitem(sys.modules, "PyInstaller.utils", types.ModuleType("PyInstaller.utils"))
+    monkeypatch.setitem(
+        sys.modules, "PyInstaller.utils.hooks", types.ModuleType("PyInstaller.utils.hooks")
+    )
+    monkeypatch.setitem(sys.modules, "PyInstaller.utils.hooks.gi", fake_gi)
+
+    hook_path = (
+        Path(__file__).parents[1]
+        / "win"
+        / "hooks"
+        / "hook-gi.repository.GIRepository.py"
+    )
+    spec = importlib.util.spec_from_file_location("dayquay_girepository_hook", hook_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class HookApi:
+        def add_datas(self, values):
+            self.datas = values
+
+        def add_binaries(self, values):
+            self.binaries = values
+
+        def add_imports(self, *values):
+            self.imports = values
+
+    api = HookApi()
+    module.hook(api)
+
+    assert calls == [("GIRepository", "3.0", api)]
+    assert api.datas == ["girepository-typelib"]
+    assert api.binaries == ["girepository-binary"]
+    assert api.imports == ("dependency",)

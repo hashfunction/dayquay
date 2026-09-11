@@ -50,7 +50,11 @@ a = Analysis(
             "icons": ["Adwaita"],
             "themes": ["Adwaita"],
             "languages": ["en"],
-            "module-versions": {"Gtk": "3.0", "GtkSource": "4"},
+            "module-versions": {
+                "GIRepository": "3.0",
+                "Gtk": "3.0",
+                "GtkSource": "4",
+            },
         }
     },
     runtime_hooks=[str(win_dir / "dayquay-runtime-hook.py")],

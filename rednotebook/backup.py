@@ -48,6 +48,12 @@ class BackupResult:
     total_bytes: int
 
 
+@dataclass(frozen=True)
+class BackupSelection:
+    path: str
+    overwrite: bool = False
+
+
 def _source_entries(files, base_dir, arc_base_dir=""):
     root = Path(base_dir or os.curdir).resolve(strict=True)
     prefix = PurePosixPath(str(arc_base_dir).replace("\\", "/"))
@@ -124,6 +130,13 @@ def write_archive(
     archive_file_name, files, base_dir="", arc_base_dir="", *, overwrite=False
 ):
     """Write a portable archive and publish it after full integrity verification."""
+    from rednotebook import restore
+
+    if base_dir:
+        try:
+            restore.validate_journal_directory(base_dir)
+        except restore.InvalidBackup as exc:
+            raise InvalidBackupSource(f"Journal is not portable: {exc}") from exc
     requested_destination = Path(archive_file_name)
     if requested_destination.is_symlink():
         raise InvalidBackupSource(
@@ -143,7 +156,9 @@ def write_archive(
     staged = Path(staged_name)
     manifest_entries = []
     try:
-        with zipfile.ZipFile(staged, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        # Store journal members without compression so any valid backup also
+        # satisfies restore's decompression-ratio policy by construction.
+        with zipfile.ZipFile(staged, mode="w", compression=zipfile.ZIP_STORED) as archive:
             for member_name, source in entries:
                 manifest_entries.append(_stream_member(archive, member_name, source))
             archive.writestr(
@@ -159,6 +174,10 @@ def write_archive(
             if failed_member := archive.testzip():
                 raise OSError(f'Backup verification failed for member "{failed_member}"')
             json.loads(archive.read(MANIFEST_NAME))
+        try:
+            restore.inspect_backup(staged)
+        except restore.InvalidBackup as exc:
+            raise InvalidBackupSource(f"Portable backup validation failed: {exc}") from exc
         if overwrite:
             os.replace(staged, destination)
         else:
@@ -216,29 +235,43 @@ class Archiver:
             self.journal.config["lastBackupDate"] = datetime.datetime.max.strftime(DATE_FORMAT)
 
     def backup(self):
-        backup_file = self._get_backup_file()
+        selection = self._get_backup_file()
         # Abort if user did not select a path.
-        if not backup_file:
-            return
+        if not selection:
+            return False
+        if isinstance(selection, (str, os.PathLike)):
+            selection = BackupSelection(os.fspath(selection), overwrite=False)
+        backup_file = selection.path
 
         self.journal.save_to_disk()
         data_dir = self.journal.dirs.data_dir
         archive_files = []
-        for root, _, files in os.walk(data_dir):
+        for root, _directories, files in os.walk(data_dir):
             for file in files:
                 if not file.endswith("~") and "DayQuay-Backup" not in file:
                     archive_files.append(os.path.join(root, file))
 
-        write_archive(
-            backup_file,
-            archive_files,
-            data_dir,
-            overwrite=os.path.exists(backup_file),
-        )
+        try:
+            write_archive(
+                backup_file,
+                archive_files,
+                data_dir,
+                overwrite=selection.overwrite,
+            )
+        except (FileExistsError, InvalidBackupSource, OSError) as err:
+            self.journal.show_message(
+                _("The portable backup was not created: %s. "
+                  "Your journal and the existing destination were unchanged.")
+                % err,
+                title=_("Backup failed"),
+                error=True,
+            )
+            return False
 
         logging.info(f"The content has been backed up at {backup_file}")
         self.journal.config["lastBackupDate"] = datetime.datetime.now().strftime(DATE_FORMAT)
         self.journal.config["lastBackupDir"] = os.path.dirname(backup_file)
+        return True
 
     def _last_backup_age(self):
         now = datetime.datetime.now()
@@ -265,6 +298,7 @@ class Archiver:
 
         backup_dialog = self.journal.frame.builder.get_object("backup_dialog")
         backup_dialog.set_transient_for(self.journal.frame.main_frame)
+        backup_dialog.set_do_overwrite_confirmation(False)
         backup_dialog.set_current_folder(proposed_directory)
         backup_dialog.set_current_name(proposed_filename)
 
@@ -278,4 +312,22 @@ class Archiver:
 
         if response == Gtk.ResponseType.OK:
             path = backup_dialog.get_filename()
-            return path
+            overwrite = False
+            if os.path.exists(path):
+                dialog = Gtk.MessageDialog(
+                    transient_for=self.journal.frame.main_frame,
+                    modal=True,
+                    message_type=Gtk.MessageType.WARNING,
+                    buttons=Gtk.ButtonsType.YES_NO,
+                    text=_("Replace the existing backup?"),
+                )
+                dialog.format_secondary_text(
+                    _("This replaces the file at %s. A file that appears after this "
+                      "decision will not be replaced.")
+                    % path
+                )
+                overwrite = dialog.run() == Gtk.ResponseType.YES
+                dialog.destroy()
+                if not overwrite:
+                    return None
+            return BackupSelection(path=path, overwrite=overwrite)
