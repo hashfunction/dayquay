@@ -4,8 +4,14 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import os
+import stat
 import subprocess
+import sys
+import types
 import unittest
+from unittest.mock import patch
+
+from junction_fixture import WindowsJunctionFixture
 
 try:
     spec = importlib.util.spec_from_file_location(
@@ -17,7 +23,7 @@ except FileNotFoundError:
     collector = None
 
 
-class NoticeTests(unittest.TestCase):
+class NoticeTests(WindowsJunctionFixture, unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(collector, "Native notice collector is not implemented")
         tmp = tempfile.TemporaryDirectory()
@@ -51,19 +57,45 @@ class NoticeTests(unittest.TestCase):
             collector.collect_notices(self.prefix, self.release)
         self.assertEqual(marker.read_bytes(), b"preserve")
 
-    def test_refuses_linked_notice_sources(self):
-        notice = self.prefix / "share/licenses/link"
+    def create_notice_link(self, notice):
         if os.name == "nt":
-            subprocess.run(
-                ["cmd", "/d", "/c", "mklink", "/J", str(notice), str(self.root)],
-                check=True,
-                capture_output=True,
-            )
+            self.create_windows_junction(notice, self.root)
         else:
             notice.symlink_to(self.root, target_is_directory=True)
-        with self.assertRaises(ValueError):
-            collector.collect_notices(self.prefix, self.release)
-        notice.rmdir() if os.name == "nt" else notice.unlink()
+
+    def test_notice_junction_uses_native_paths_from_actual_msys_failure(self):
+        self.root = "D:/a/_temp/msys64/tmp/notice fixture"
+        notice = self.root + "/ucrt64/share/licenses/link"
+        with patch.object(sys.modules[__name__], "os", types.SimpleNamespace(name="nt")), patch(
+            "subprocess.run", return_value=subprocess.CompletedProcess([], 0, "", "")
+        ) as run:
+            self.create_notice_link(notice)
+        self.assertEqual(
+            run.call_args.args[0],
+            [
+                "cmd.exe",
+                "/d",
+                "/v:off",
+                "/c",
+                "mklink",
+                "/J",
+                r"D:\a\_temp\msys64\tmp\notice fixture\ucrt64\share\licenses\link",
+                r"D:\a\_temp\msys64\tmp\notice fixture",
+            ],
+        )
+
+    def test_refuses_linked_notice_sources(self):
+        notice = self.prefix / "share/licenses/linked notices"
+        self.create_notice_link(notice)
+        try:
+            if os.name == "nt":
+                info = notice.lstat()
+                self.assertTrue(info.st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+                self.assertEqual(info.st_reparse_tag, stat.IO_REPARSE_TAG_MOUNT_POINT)
+            with self.assertRaisesRegex(ValueError, "Symlink/reparse point refused"):
+                collector.collect_notices(self.prefix, self.release)
+        finally:
+            notice.rmdir() if os.name == "nt" else notice.unlink()
         self.assertFalse((self.release / "_internal/notices").exists())
 
 

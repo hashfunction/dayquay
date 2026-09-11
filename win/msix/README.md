@@ -228,3 +228,31 @@ Local command-adapter tests do not execute cmd.exe or claim a native junction
 pass. Independent source review and fresh exact-source Windows qualification
 remain required. InkQuay uses direct CreateSymbolicLinkW/RemoveDirectoryW test
 APIs, so its qualifier confirmed this specific cmd operand issue does not apply.
+
+## Notice fixture follow-up after run34615894079
+
+Run [34615894079](https://github.com/hashfunction/dayquay/actions/runs/34615894079)
+at source `7aeaf054919d869ff8e2920f3250b48d2b771157`, public snapshot
+`853660cc449b7939f0e909ec84ffeb6a8ce59acf`, passed all 30 package tests in
+18.749s. This includes the actual Windows junction creation, native reparse-tag
+assertion and unchanged stage rejection: the preceding junction repair passed
+on the MSYS2 Python3.14.7 runner. The following notice suite failed in its
+separate, still-old `cmd /d /c mklink /J` invocation with `D:/...` operands,
+before it could test notice rejection. The other two notice tests passed.
+
+Both suites now inherit the same test-only Windows junction helper. Its native
+path conversion, quoting, command-syntax rejection and failure diagnostics are
+unchanged from the qualified package fixture. The notice test uses a spaced
+link path, verifies the native mount-point reparse tag and removes the link in
+`finally`; the real notice collector must still reject it, leaving no notice
+output. There is no skip or alternate success path, and production collection,
+package gates, application behavior and workflow are unchanged.
+
+The new regression calls the notice fixture's actual Windows link-creation
+method with the observed MSYS path shape and captures only the subprocess
+boundary. RED retained the old `/` operands and command options; GREEN uses the
+shared native command. All 30 package tests and four notice tests pass locally,
+as do Black100 and diff checks. Local tests exercise real POSIX notice rejection
+and Windows command construction; the repaired Windows notice fixture still
+requires a fresh native run. Failed-job log SHA256:
+`a7c375c099a9c4dd36a177a57b2b06a9c8799160f95c79ad7b7408d0807e2d0d`.

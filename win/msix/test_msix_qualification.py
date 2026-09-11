@@ -20,6 +20,8 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
+from junction_fixture import WindowsJunctionFixture
+
 try:
     import msix_qualification as msix
 except ImportError:
@@ -30,7 +32,7 @@ def digest(data):
     return dict(bytes=len(data), sha256=hashlib.sha256(data).hexdigest())
 
 
-class QualificationTests(unittest.TestCase):
+class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
     def setUp(self):
         self.assertIsNotNone(msix, "DayQuay MSIX qualification is not implemented")
         temporary = tempfile.TemporaryDirectory()
@@ -452,27 +454,6 @@ class QualificationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.stage()
         self.assertEqual(marker.read_text(), "preserve")
-
-    def create_windows_junction(self, link, target):
-        # MSYS2's native Python can spell absolute paths D:/...; cmd's mklink
-        # builtin needs Windows operands. Keep argv quoting for spaces and refuse
-        # shell syntax/expansion in these test-owned paths before invoking cmd.
-        paths = [str(path).replace("/", "\\") for path in (link, target)]
-        for path in paths:
-            self.assertFalse(
-                any(c in path for c in '"%!&|^<>()') or any(ord(c) < 32 for c in path),
-                "Unsafe cmd syntax in junction fixture path",
-            )
-        result = subprocess.run(
-            ["cmd.exe", "/d", "/v:off", "/c", "mklink", "/J", *paths],
-            capture_output=True,
-            text=True,
-            errors="replace",
-        )
-        self.assertEqual(
-            result.returncode, 0, f"mklink failed for {paths!r}: {result.stdout} {result.stderr}"
-        )
-        return result
 
     def test_junction_command_uses_native_paths_from_msys_spelling(self):
         completed = subprocess.CompletedProcess([], 0, stdout=b"created", stderr=b"")
