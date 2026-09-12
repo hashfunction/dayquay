@@ -325,6 +325,15 @@ class _WindowsInput:
     class INPUT(ctypes.Structure):
         pass
 
+    class GUITHREADINFO(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD), ("flags", wintypes.DWORD),
+            ("hwndActive", wintypes.HWND), ("hwndFocus", wintypes.HWND),
+            ("hwndCapture", wintypes.HWND), ("hwndMenuOwner", wintypes.HWND),
+            ("hwndMoveSize", wintypes.HWND), ("hwndCaret", wintypes.HWND),
+            ("rcCaret", wintypes.RECT),
+        ]
+
     _INPUTUNION._fields_ = [("ki", KEYBDINPUT), ("mi", MOUSEINPUT)]
     INPUT._anonymous_ = ("value",)
     INPUT._fields_ = [("type", wintypes.DWORD), ("value", _INPUTUNION)]
@@ -337,6 +346,9 @@ class _WindowsInput:
         self.current_title = main_title
         self._input_hwnd = None
         self._input_title = None
+        self._diagnostic_trace = []
+        self._path_selection = None
+        self._wait_condition = None
         self.user32 = ctypes.WinDLL("user32", use_last_error=True)
         self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         self._configure_user32()
@@ -366,6 +378,12 @@ class _WindowsInput:
             ctypes.c_int,
         )
         self.user32.GetWindowTextW.restype = ctypes.c_int
+        self.user32.GetClassNameW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+        self.user32.GetClassNameW.restype = ctypes.c_int
+        self.user32.GetGUIThreadInfo.argtypes = (
+            wintypes.DWORD, ctypes.POINTER(self.GUITHREADINFO),
+        )
+        self.user32.GetGUIThreadInfo.restype = wintypes.BOOL
         self.user32.GetWindowThreadProcessId.argtypes = (
             wintypes.HWND,
             ctypes.POINTER(wintypes.DWORD),
@@ -527,33 +545,117 @@ class _WindowsInput:
         self._send(inputs)
 
     def _wait_window(self, title, present=True, timeout=12.0):
+        self._wait_condition = {"title": title, "present": present, "timeout_seconds": timeout, "status": "waiting"}
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             matches = [item for item in self._owned_windows() if item[1] == title]
             if bool(matches) == present:
                 if not present:
+                    self._wait_condition["status"] = "satisfied"
                     return None
                 if len(matches) != 1:
+                    self._wait_condition["status"] = "ambiguous"
                     raise ValueError(f"ambiguous owned consumer window: {title}")
+                self._wait_condition["status"] = "satisfied"
                 return matches[0][0]
             time.sleep(0.1)
         state = [title for _hwnd, title in self._owned_windows()]
-        raise ValueError(f"timed out waiting for consumer window {title!r}: {state}")
+        self._wait_condition["status"] = "timed_out"
+        raise ValueError(
+            f"timed out waiting for consumer window {title!r}, present={present}: {state}"
+        )
+
+    def _diagnostic_window(self, hwnd):
+        hwnd = int(hwnd or 0)
+        live = bool(hwnd and self.user32.IsWindow(wintypes.HWND(hwnd)))
+        owned = live and self._window_pid(hwnd) == self.process_id
+        record = {"hwnd": hwnd, "live": live, "owned": owned}
+        if owned:
+            class_name = ctypes.create_unicode_buffer(256)
+            self.user32.GetClassNameW(wintypes.HWND(hwnd), class_name, len(class_name))
+            record.update(
+                title=self._title(hwnd)[:512], class_name=class_name.value,
+                visible=bool(self.user32.IsWindowVisible(wintypes.HWND(hwnd))),
+                enabled=bool(self.user32.IsWindowEnabled(wintypes.HWND(hwnd))),
+            )
+        return record
+
+    def _observe_diagnostic_state(self):
+        self._assert_process_live()
+        target = self._diagnostic_window(self._input_hwnd)
+        state = {
+            "input_target": target,
+            "foreground": self._diagnostic_window(self.user32.GetForegroundWindow()),
+            "owned_windows": [self._diagnostic_window(hwnd) for hwnd, _ in self._owned_windows()[:16]],
+            "focus_scope": "Win32 HWND focus; GTK widget/default-button focus may require the failure screenshot",
+        }
+        if target["owned"]:
+            owner = wintypes.DWORD()
+            thread = self.user32.GetWindowThreadProcessId(wintypes.HWND(target["hwnd"]), ctypes.byref(owner))
+            if owner.value != self.process_id:
+                raise ValueError("diagnostic window ownership changed")
+            info = self.GUITHREADINFO()
+            info.cbSize = ctypes.sizeof(info)
+            if not self.user32.GetGUIThreadInfo(thread, ctypes.byref(info)):
+                raise ctypes.WinError(ctypes.get_last_error())
+            state.update(
+                gui_thread_id=int(thread), gui_flags=int(info.flags),
+                active=self._diagnostic_window(info.hwndActive),
+                focus=self._diagnostic_window(info.hwndFocus),
+                caret=self._diagnostic_window(info.hwndCaret),
+            )
+        return state
+
+    def _record_diagnostic_step(self, step):
+        try:
+            state = self._observe_diagnostic_state()
+        except Exception as exc:
+            state = {"observation_error": str(exc)[:1024]}
+        trace = getattr(self, "_diagnostic_trace", [])
+        trace.append({"step": step, "selection": self._path_selection, "state": state})
+        self._diagnostic_trace = trace[-32:]
+
+    def failure_diagnostics(self):
+        try:
+            state = self._observe_diagnostic_state()
+        except Exception as exc:
+            state = {"observation_error": str(exc)[:1024]}
+        return {
+            "wait_condition": getattr(self, "_wait_condition", None),
+            "path_selection": getattr(self, "_path_selection", None),
+            "input_target": {"hwnd": self._input_hwnd, "title": self._input_title},
+            "trace": getattr(self, "_diagnostic_trace", []), "failure_state": state,
+        }
 
     def _main(self, title=None):
         expected = self.current_title if title is None else title
         self._foreground(self.main_hwnd, expected)
 
     def _select_path(self, dialog_title, path, accept_key):
+        self._path_selection = {
+            "dialog_title": dialog_title, "path": str(path)[:4096], "accept_key": accept_key,
+        }
+        try:
+            self._path_selection.update(
+                exists=Path(path).exists(), is_directory=Path(path).is_dir(),
+                parent_exists=Path(path).parent.exists(),
+            )
+        except OSError as exc:
+            self._path_selection["observation_error"] = str(exc)[:1024]
         hwnd = self._wait_window(dialog_title)
         self._foreground(hwnd, dialog_title)
+        self._record_diagnostic_step("dialog_foreground")
         self.chord("CTRL", "L")
+        self._record_diagnostic_step("after_ctrl_l")
         self.text(str(path))
+        self._record_diagnostic_step("after_path_text")
         self.press("ENTER")
+        self._record_diagnostic_step("after_enter")
         time.sleep(0.5)
         if any(item[0] == hwnd for item in self._owned_windows()):
             self._foreground(hwnd, dialog_title)
             self.chord("ALT", accept_key)
+            self._record_diagnostic_step("after_accept_key")
         self._wait_window(dialog_title, present=False)
 
     def _click_editor(self):
@@ -694,6 +796,15 @@ def main():
         evidence["main_window_handle"] = args.main_window_handle
         _write_json_exclusive(args.output, evidence)
     except (OSError, ValueError, RuntimeError) as exc:
+        failure = {
+            "schema_version": 1, "workflow_qualified": False, "error": str(exc),
+            "process_id": args.process_id, "main_window_handle": args.main_window_handle,
+            "diagnostics": ui.failure_diagnostics() if ui is not None else None,
+        }
+        try:
+            _write_json_exclusive(args.output.with_name(args.output.stem + "-failure.json"), failure)
+        except (OSError, ValueError) as diagnostic_error:
+            parser.error(f"{exc}; failure diagnostics could not be retained: {diagnostic_error}")
         parser.error(str(exc))
     finally:
         if ui is not None:

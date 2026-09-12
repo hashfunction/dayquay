@@ -91,3 +91,64 @@ $fitCalls=@($capture.FindAll({param($node) $node -is [Management.Automation.Lang
 $copies=@($capture.FindAll({param($node) $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and $node.Member.Value -eq 'CopyFromScreen'},$true))
 if($fitCalls.Count -ne 1 -or $copies.Count -ne 1 -or $fitCalls[0].Extent.StartOffset -gt $copies[0].Extent.StartOffset){throw 'Production screenshot path does not fit/reobserve before screen capture'}
 Write-Output 'PASS production screenshot wiring and native declaration compilation; no Win32 invocation on macOS'
+
+# Failure capture is read-only: it must never focus/move a window and may read
+# pixels only for the exact already-foreground owned dialog.
+foreach($case in @('owned','foreign','wrong-hwnd','wrong-title','hidden','foreign-foreground','outside-desktop','oversized','changed-after-capture','capture-error')) {
+    $script:failureObservation=@{process_id=123;window_handle=17;title='Select a directory';visible=$true;foreground_window_handle=17;
+        bounds=@{x=20;y=30;width=600;height=400};virtual_screen=@{x=0;y=0;width=1024;height=768}}
+    $script:failureCaptures=0
+    $operations=@{
+        Observe={return ($script:failureObservation | ConvertTo-Json -Depth 5 | ConvertFrom-Json -AsHashtable)}
+        Capture={param($bounds) $script:failureCaptures++; return [byte[]](1,2,3)}
+    }
+    switch($case) {
+        foreign {$script:failureObservation.process_id=999}
+        wrong-hwnd {$script:failureObservation.window_handle=18}
+        wrong-title {$script:failureObservation.title='Other'}
+        hidden {$script:failureObservation.visible=$false}
+        foreign-foreground {$script:failureObservation.foreground_window_handle=99}
+        outside-desktop {$script:failureObservation.bounds.x=1000}
+        oversized {$script:failureObservation.bounds.width=3000}
+        changed-after-capture {$operations.Capture={param($bounds) $script:failureCaptures++;$script:failureObservation.foreground_window_handle=99;return [byte[]](1,2,3)}}
+        capture-error {$operations.Capture={param($bounds) $script:failureCaptures++;throw 'capture failed'}}
+    }
+    $details=@{};$failure=$null;$bytes=$null
+    try {$bytes=Invoke-DayQuayFailureCapture 123 17 'Select a directory' $operations $details} catch {$failure=$_.Exception.Message}
+    if (($case -eq 'owned') -eq [bool]$failure) {throw "Failure capture result differs: $case / $failure"}
+    if ($case -eq 'owned' -and ($bytes.Count -ne 3 -or $script:failureCaptures -ne 1)) {throw 'Owned dialog was not captured exactly once'}
+    if ($case -notin @('owned','changed-after-capture','capture-error') -and $script:failureCaptures) {throw "Unowned/unbounded pixels were captured: $case"}
+    if ($failure -and $null -ne $bytes) {throw "Rejected capture returned pixels: $case"}
+}
+Write-Output 'PASS failure-only capture: exact owner/foreground/bounds, post-capture recheck, and native capture error'
+
+# Execute the actual consumer try/catch, replacing only native invocation and
+# screenshot adapters, to prove diagnostics cannot replace the primary error.
+$installAst=(Get-Command Invoke-DayQuayInstallQualification).ScriptBlock.Ast
+$consumerTry=@($installAst.FindAll({param($node)
+    $node -is [Management.Automation.Language.TryStatementAst] -and
+    $node.Body.Extent.Text -match "'installed_workflow_qualification.py'"
+},$true))
+if ($consumerTry.Count -ne 1) {throw 'Cannot locate the exact consumer diagnostic catch'}
+foreach($diagnosticFailure in @($false,$true)) {
+    & {
+        $state=@{process=(Get-Process -Id $PID);expectedTitle='DayQuay';workflowProfile=@{root='fixture-profile'};
+            workflowArchive='fixture.zip';workflowRestoreName='Restored';workflowSentinel='sentinel';workflowReopenMarker='reopen';
+            output='fixture-output';workflowDiagnosticError=$null}
+        $workflowEvidencePath='fixture-output/installed-consumer-workflow.json';$diagnosticCalls=@{count=0}
+        function Get-DayQuayPackagingPython {return 'fixture-python'}
+        function Invoke-CheckedNative {throw 'original consumer failure'}
+        function Write-DayQuayConsumerWindowFailure {
+            $diagnosticCalls.count++
+            if ($diagnosticFailure) {throw 'diagnostic failure'}
+        }
+        $failure=$null
+        # A real .ps1 file provides PSScriptRoot as in the production helper.
+        $consumerScript=Join-Path ([IO.Path]::GetTempPath()) ('dayquay-consumer-catch-'+[guid]::NewGuid().ToString('N')+'.ps1')
+        Write-NewUtf8Text $consumerScript $consumerTry[0].Extent.Text
+        try {& $consumerScript} catch {$failure=$_.Exception.Message} finally {Remove-Item -LiteralPath $consumerScript}
+        if ($failure -cne 'original consumer failure' -or $diagnosticCalls.count -ne 1) {throw "Consumer failure was masked or diagnostics were not attempted exactly once: $failure / calls=$($diagnosticCalls.count)"}
+        if ([bool]$state.workflowDiagnosticError -ne $diagnosticFailure) {throw 'Diagnostic error was not retained separately'}
+    }
+}
+Write-Output 'PASS actual consumer catch preserves original error when failure capture succeeds or fails'

@@ -438,6 +438,108 @@ function Get-WindowQualification([Diagnostics.Process]$Process, [string]$OutputD
     return $snapshot
 }
 
+function Assert-DayQuayFailureCaptureSnapshot($Snapshot, [int]$ProcessId, [int64]$WindowHandle, [string]$Title) {
+    if ($Snapshot.process_id -ne $ProcessId -or $Snapshot.window_handle -ne $WindowHandle -or
+        $Snapshot.title -cne $Title -or -not $Snapshot.visible -or
+        $Snapshot.foreground_window_handle -ne $WindowHandle) { throw 'Failure capture is not the exact owned foreground dialog.' }
+    Assert-DayQuayFiniteRectangle $Snapshot.bounds
+    Assert-DayQuayFiniteRectangle $Snapshot.virtual_screen
+    $bounds=$Snapshot.bounds; $desktop=$Snapshot.virtual_screen
+    if ($bounds.width -gt 2048 -or $bounds.height -gt 2048 -or ($bounds.width*$bounds.height) -gt 2097152 -or
+        $bounds.x -lt $desktop.x -or $bounds.y -lt $desktop.y -or
+        ($bounds.x+$bounds.width) -gt ($desktop.x+$desktop.width) -or
+        ($bounds.y+$bounds.height) -gt ($desktop.y+$desktop.height)) { throw 'Failure dialog is outside bounded visible desktop capture.' }
+}
+
+function Invoke-DayQuayFailureCapture([int]$ProcessId, [int64]$WindowHandle, [string]$Title, [Collections.IDictionary]$Operations, [Collections.IDictionary]$Evidence) {
+    $Evidence.before=& $Operations.Observe
+    Assert-DayQuayFailureCaptureSnapshot $Evidence.before $ProcessId $WindowHandle $Title
+    [byte[]]$bytes=& $Operations.Capture $Evidence.before.bounds
+    if (-not $bytes.Length -or $bytes.Length -gt 1000000) { throw 'Failure screenshot exceeds the bounded PNG evidence size.' }
+    $Evidence.after=& $Operations.Observe
+    Assert-DayQuayFailureCaptureSnapshot $Evidence.after $ProcessId $WindowHandle $Title
+    foreach($field in @('x','y','width','height')) {
+        if ($Evidence.before.bounds.$field -ne $Evidence.after.bounds.$field) { throw 'Failure dialog moved during screenshot capture.' }
+    }
+    return ,$bytes
+}
+
+function Write-DayQuayConsumerWindowFailure([Diagnostics.Process]$Process, [string]$FailurePath, [string]$OutputDirectory) {
+    $evidence=[ordered]@{diagnostic_only=$true;workflow_qualified=$false;process_id=$Process.Id;
+        screenshot_captured=$false;screenshot_sha256=$null;capture_error=$null;geometry=@{};controls=@()}
+    try {
+        $failure=Get-Content -LiteralPath $FailurePath -Raw -Encoding utf8 | ConvertFrom-Json
+        if ($failure.process_id -ne $Process.Id -or $failure.workflow_qualified) { throw 'Failure receipt does not belong to the retained consumer process.' }
+        $target=$failure.diagnostics.input_target
+        $windowHandle=[IntPtr]::new([int64]$target.hwnd)
+        $title=[string]$target.title
+        if ($windowHandle -eq [IntPtr]::Zero -or -not $title -or $title.Length -gt 512) { throw 'Failure receipt has no bounded pinned input target.' }
+        $evidence.input_target=@{hwnd=$windowHandle.ToInt64();title=$title}
+        Add-Type -AssemblyName UIAutomationClient
+        Add-Type -AssemblyName UIAutomationTypes
+        Add-Type -AssemblyName System.Drawing
+        Add-Type -AssemblyName System.Windows.Forms
+        $observe={
+            $Process.Refresh()
+            if ($Process.HasExited) { throw 'Retained consumer process exited before failure capture.' }
+            [uint32]$owner=0
+            [DayQuayQualification.NativePackageProbe]::GetWindowThreadProcessId($windowHandle,[ref]$owner) | Out-Null
+            if ($owner -ne $Process.Id) { throw 'Failure window no longer belongs to the retained process.' }
+            $root=[Windows.Automation.AutomationElement]::FromHandle($windowHandle)
+            if (-not $root -or $root.Current.ProcessId -ne $Process.Id) { throw 'Failure UIA root is not owned.' }
+            $rectangle=$root.Current.BoundingRectangle
+            $desktop=[Windows.Forms.SystemInformation]::VirtualScreen
+            return @{process_id=[int]$owner;window_handle=$windowHandle.ToInt64();
+                title=[string]$root.Current.Name;visible=(-not $root.Current.IsOffscreen);
+                foreground_window_handle=[DayQuayQualification.NativePackageProbe]::GetForegroundWindow().ToInt64();
+                bounds=@{x=[Math]::Floor($rectangle.X);y=[Math]::Floor($rectangle.Y);
+                    width=[Math]::Ceiling($rectangle.Right)-[Math]::Floor($rectangle.X);
+                    height=[Math]::Ceiling($rectangle.Bottom)-[Math]::Floor($rectangle.Y)};
+                virtual_screen=@{x=$desktop.X;y=$desktop.Y;width=$desktop.Width;height=$desktop.Height}}
+        }.GetNewClosure()
+        $capture={param($bounds)
+            $bitmap=[Drawing.Bitmap]::new([int]$bounds.width,[int]$bounds.height)
+            $graphics=$null;$buffer=[IO.MemoryStream]::new()
+            try {
+                $graphics=[Drawing.Graphics]::FromImage($bitmap)
+                $graphics.CopyFromScreen([int]$bounds.x,[int]$bounds.y,0,0,$bitmap.Size)
+                $bitmap.Save($buffer,[Drawing.Imaging.ImageFormat]::Png)
+                return ,$buffer.ToArray()
+            } finally {
+                if ($graphics) {$graphics.Dispose()};$bitmap.Dispose();$buffer.Dispose()
+            }
+        }
+        [byte[]]$bytes=Invoke-DayQuayFailureCapture $Process.Id $windowHandle.ToInt64() $title @{Observe=$observe;Capture=$capture} $evidence.geometry
+        $imagePath=Join-Path $OutputDirectory 'installed-consumer-window-failure.png'
+        $stream=[IO.FileStream]::new($imagePath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        try {$stream.Write($bytes,0,$bytes.Length);$stream.Flush($true)} finally {$stream.Dispose()}
+        $evidence.screenshot_captured=$true
+        $evidence.screenshot_sha256=(Get-FileHash -LiteralPath $imagePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $root=[Windows.Automation.AutomationElement]::FromHandle($windowHandle)
+        $elements=$root.FindAll([Windows.Automation.TreeScope]::Subtree,[Windows.Automation.Condition]::TrueCondition)
+        $controls=[Collections.Generic.List[object]]::new()
+        for($index=0;$index -lt [Math]::Min(128,$elements.Count);$index++) {
+            $element=$elements.Item($index)
+            if ($element.Current.ProcessId -ne $Process.Id) { continue }
+            $name=[string]$element.Current.Name
+            $item=[ordered]@{name=$name.Substring(0,[Math]::Min(512,$name.Length));
+                control_type=[string]$element.Current.ControlType.ProgrammaticName;
+                keyboard_focus=[bool]$element.Current.HasKeyboardFocus;enabled=[bool]$element.Current.IsEnabled;
+                value=$null;value_exposed=$false}
+            $pattern=$null
+            if (-not $element.Current.IsPassword -and $element.TryGetCurrentPattern([Windows.Automation.ValuePattern]::Pattern,[ref]$pattern)) {
+                $value=[string]$pattern.Current.Value
+                $item.value=$value.Substring(0,[Math]::Min(4096,$value.Length));$item.value_exposed=$true
+            }
+            $controls.Add($item)
+        }
+        $evidence.controls=@($controls)
+        $evidence.control_tree_truncated=($elements.Count -gt 128)
+        $evidence.focus_scope='Available owned UIA focus/values only; GTK may expose just its root. Inspect the owned screenshot for path text and default-button appearance.'
+    } catch {$evidence.capture_error=$_.Exception.Message}
+    Write-NewUtf8Json (Join-Path $OutputDirectory 'installed-consumer-window-failure.json') $evidence
+}
+
 function Write-NewUtf8Json([string]$Path, [object]$Value) {
     $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($Value | ConvertTo-Json -Depth 20) + [Environment]::NewLine)
     $stream = [IO.FileStream]::new($Path, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
@@ -522,6 +624,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         cleanClose = $false; uninstallVerified = $false; processShutdownVerified = $false
         workflowProfile = $null; workflowProfileRemoved = $false; workflowEvidence = $null; workflowTested = $false
         workflowArchive = $null; workflowRestoreName = 'RestoredQualification'; workflowSentinel = $null; workflowReopenMarker = $null
+        workflowDiagnosticError = $null
     }
     $expectedIdentity = [ordered]@{
         packageName='Trieflow.DayQuay.Qualification'; publisher='CN=DayQuay-CI-Qualification'; version='1.0.0.0'
@@ -713,7 +816,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         Write-NewUtf8Json (Join-Path $state.output 'loaded-modules.json') $state.modules
         $state.window = Get-WindowQualification $state.process $state.output $state.expectedTitle
         $workflowEvidencePath = Join-Path $state.output 'installed-consumer-workflow.json'
-        Invoke-CheckedNative (Get-DayQuayPackagingPython) @(
+        try { Invoke-CheckedNative (Get-DayQuayPackagingPython) @(
             (Join-Path $PSScriptRoot 'installed_workflow_qualification.py'),
             '--process-id',[string]$state.process.Id,
             '--main-window-handle',[string]$state.process.MainWindowHandle.ToInt64(),
@@ -724,6 +827,14 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
             '--sentinel',$state.workflowSentinel,
             '--reopen-marker',$state.workflowReopenMarker,
             '--output',$workflowEvidencePath)
+        } catch {
+            $workflowError=$_
+            try {
+                Write-DayQuayConsumerWindowFailure $state.process `
+                    (Join-Path $state.output 'installed-consumer-workflow-failure.json') $state.output
+            } catch {$state.workflowDiagnosticError=$_.Exception.Message}
+            throw $workflowError
+        }
         $state.workflowEvidence = Get-Content -LiteralPath $workflowEvidencePath -Raw -Encoding utf8 | ConvertFrom-Json
         if ($state.workflowEvidence.schema_version -ne 1 -or
             -not $state.workflowEvidence.journal_backup_restore_workflow_tested -or
@@ -867,6 +978,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         loaded_module_count = @($state.modules).Count
         window = $state.window
         installed_consumer_workflow = $state.workflowEvidence
+        workflow_diagnostic_error = $state.workflowDiagnosticError
         workflow_profile_removed = $state.workflowProfileRemoved
         process_exit = $state.processExit
         cleanup_process_exit = $state.cleanupProcessExit

@@ -56,6 +56,19 @@ entire installed payload, allowing only the known SDK/signature metadata extras.
 
 ## Installation and evidence
 
+If installed consumer input fails, `installed-consumer-workflow-failure.json`
+retains the desired window presence/absence, intended path and path existence,
+the last 32 input-step observations, and native owned-window/foreground/focus
+state. The error remains a failure and no successful workflow receipt is written.
+Before cleanup, the qualifier also attempts a read-only capture of the exact
+already-foreground owned input window. It writes
+`installed-consumer-window-failure.json` and, when ownership and whole-window
+bounds remain valid before/after capture, a PNG capped at 1 MB. Available owned
+UIA focus/value fields supplement the screenshot; GTK may expose only its root,
+so default-button appearance and entered path text may require image inspection.
+Diagnostic capture never moves/refocuses a window or sends another key, and a
+diagnostic error does not replace the primary workflow failure.
+
 The installer refuses existing matching registrations and existing DayQuay/legacy
 host profiles. It signs only a temporary copy using a nonexportable ephemeral key,
 trusts only that public certificate and verifies the exact signer/SignTool hashes.

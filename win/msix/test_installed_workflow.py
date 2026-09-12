@@ -6,6 +6,7 @@ import json
 from ctypes import wintypes
 from pathlib import Path
 import shutil
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -324,6 +325,92 @@ class InstalledWorkflowTests(unittest.TestCase):
         self.assertEqual(native._key("CTRL").ki.wVk, 0x11)
         self.assertEqual(native._key("B").ki.wVk, ord("B"))
 
+    def test_timeout_records_whether_the_named_window_should_be_absent(self):
+        native = object.__new__(workflow._WindowsInput)
+        native._owned_windows = lambda: [(17, "Select a directory")]
+        with self.assertRaisesRegex(ValueError, "present=False"):
+            native._wait_window("Select a directory", present=False, timeout=0)
+        self.assertEqual(native._wait_condition["present"], False)
+        self.assertEqual(native._wait_condition["title"], "Select a directory")
+        self.assertEqual(native._wait_condition["status"], "timed_out")
+
+    def test_path_selection_failure_retains_steps_without_extra_inputs(self):
+        native = object.__new__(workflow._WindowsInput)
+        native._observe_diagnostic_state = lambda: {"focus": {"hwnd": 17}}
+        native._wait_window = mock.Mock(side_effect=[17, ValueError("chooser stayed open")])
+        native._foreground = mock.Mock()
+        native._owned_windows = lambda: [(17, "Select a directory")]
+        native.chord = mock.Mock()
+        native.text = mock.Mock()
+        native.press = mock.Mock()
+        with mock.patch.object(workflow.time, "sleep"):
+            with self.assertRaisesRegex(ValueError, "chooser stayed open"):
+                native._select_path("Select a directory", self.reopen_probe, "O")
+        self.assertEqual(native.chord.call_args_list, [mock.call("CTRL", "L"), mock.call("ALT", "O")])
+        native.text.assert_called_once_with(str(self.reopen_probe))
+        native.press.assert_called_once_with("ENTER")
+        self.assertEqual(native._path_selection["path"], str(self.reopen_probe))
+        self.assertTrue(native._path_selection["is_directory"])
+        self.assertEqual([row["step"] for row in native._diagnostic_trace], [
+            "dialog_foreground", "after_ctrl_l", "after_path_text", "after_enter", "after_accept_key",
+        ])
+        self.assertEqual(native._diagnostic_trace[-1]["state"]["focus"]["hwnd"], 17)
+
+    def test_diagnostic_observation_failure_does_not_inject_or_interrupt_input(self):
+        native = object.__new__(workflow._WindowsInput)
+        native._observe_diagnostic_state = mock.Mock(side_effect=OSError("focus unavailable"))
+        native._wait_window = mock.Mock(side_effect=[17, None])
+        native._foreground = mock.Mock()
+        native._owned_windows = lambda: []
+        native.chord = mock.Mock()
+        native.text = mock.Mock()
+        native.press = mock.Mock()
+        with mock.patch.object(workflow.time, "sleep"):
+            native._select_path("Select a directory", self.reopen_probe, "O")
+        native.chord.assert_called_once_with("CTRL", "L")
+        native.text.assert_called_once_with(str(self.reopen_probe))
+        native.press.assert_called_once_with("ENTER")
+        self.assertEqual(native._diagnostic_trace[-1]["state"], {"observation_error": "focus unavailable"})
+
+    def test_diagnostics_never_read_foreign_window_text(self):
+        native = object.__new__(workflow._WindowsInput)
+        native.process_id = 7
+        native.user32 = mock.Mock()
+        native.user32.IsWindow.return_value = True
+        native._window_pid = lambda _hwnd: 999
+        native._title = mock.Mock(side_effect=AssertionError("foreign title read"))
+        self.assertEqual(native._diagnostic_window(17), {"hwnd": 17, "live": True, "owned": False})
+        native._title.assert_not_called()
+        native.user32.GetClassNameW.assert_not_called()
+
+    def test_cli_failure_writes_diagnostics_and_never_a_success_receipt(self):
+        output = self.root / "installed-consumer-workflow.json"
+        ui = mock.Mock()
+        ui.failure_diagnostics.return_value = {
+            "wait_condition": {"title": "Select a directory", "present": False},
+            "path_selection": {"path": str(self.reopen_probe)},
+        }
+        arguments = [
+            "workflow", "--process-id", "7", "--main-window-handle", "17",
+            "--initial-title", "DayQuay - Friday, 9/11/2026",
+            "--profile-root", str(self.profile), "--archive", str(self.archive),
+            "--restore-name", "RestoredQualification", "--sentinel", SENTINEL,
+            "--reopen-marker", REOPEN_MARKER, "--output", str(output),
+        ]
+        with mock.patch.object(sys, "argv", arguments), mock.patch.object(
+            workflow, "_WindowsInput", return_value=ui
+        ), mock.patch.object(workflow, "run_consumer_workflow", side_effect=ValueError("chooser stayed open")):
+            with self.assertRaises(SystemExit) as failure:
+                workflow.main()
+        self.assertEqual(failure.exception.code, 2)
+        self.assertFalse(output.exists())
+        record = json.loads(output.with_name("installed-consumer-workflow-failure.json").read_text())
+        self.assertFalse(record["workflow_qualified"])
+        self.assertEqual(record["error"], "chooser stayed open")
+        self.assertEqual(record["process_id"], 7)
+        self.assertFalse(record["diagnostics"]["wait_condition"]["present"])
+        ui.close.assert_called_once()
+
     def test_user32_pointer_and_handle_signatures_are_explicit(self):
         class Function:
             pass
@@ -338,6 +425,8 @@ class InstalledWorkflowTests(unittest.TestCase):
             "GetWindowRect",
             "GetWindowTextLengthW",
             "GetWindowTextW",
+            "GetClassNameW",
+            "GetGUIThreadInfo",
             "GetWindowThreadProcessId",
             "IsWindow",
             "IsWindowEnabled",
@@ -358,6 +447,7 @@ class InstalledWorkflowTests(unittest.TestCase):
         self.assertEqual(user32.GetWindowThreadProcessId.argtypes[0], wintypes.HWND)
         self.assertEqual(user32.EnumWindows.argtypes[0], native._enum_callback_type)
         self.assertEqual(user32.SendInput.restype, wintypes.UINT)
+        self.assertEqual(user32.GetGUIThreadInfo.argtypes[1], workflow.ctypes.POINTER(native.GUITHREADINFO))
 
     def test_each_input_packet_rechecks_exact_owned_foreground_target(self):
         class User32:
