@@ -53,19 +53,22 @@ def remove_probe_tree(root, token):
             raise ValueError("probe cleanup refused a link or reparse point")
     if not marker.is_file() or marker.read_text(encoding="ascii") != token:
         raise ValueError("probe cleanup ownership marker changed")
+    # UCRT Python 3.14.7 enumerates mixed-separator WindowsPath objects that
+    # compare unequal to the same joined paths (native run 34670828389).
+    # Compare exact child names from the directory, not lexical full paths.
     if (
-        set(root.iterdir()) != {marker, parent}
-        or set(parent.iterdir()) != {probe}
-        or any(probe.iterdir())
+        set(os.listdir(root)) != {MARKER, "DayQuay"}
+        or set(os.listdir(parent)) != {"ReopenProbe"}
+        or os.listdir(probe)
     ):
         details = {}
         try:
             for label, directory, expected in (
-                ("root", root, {marker, parent}),
-                ("parent", parent, {probe}),
+                ("root", root, {MARKER, "DayQuay"}),
+                ("parent", parent, {"ReopenProbe"}),
                 ("probe", probe, set()),
             ):
-                observed = set(directory.iterdir())
+                observed = set(os.listdir(directory))
                 details[label] = {
                     "directory": str(directory)[:1024],
                     "path_type": type(directory).__name__,
