@@ -358,7 +358,9 @@ class Archiver:
         archive_files = []
         for root, _directories, files in os.walk(data_dir):
             for file in files:
-                if not file.endswith("~") and "DayQuay-Backup" not in file:
+                if not file.endswith("~") and not any(
+                    prefix in file for prefix in ("DayQuay-Backup", "Jotmorrow-Backup")
+                ):
                     archive_files.append(os.path.join(root, file))
 
         try:
@@ -404,7 +406,7 @@ class Archiver:
         else:
             name = "-" + self.journal.title
 
-        proposed_filename = f"DayQuay-Backup{name}-{datetime.date.today()}.zip"
+        proposed_filename = f"Jotmorrow-Backup{name}-{datetime.date.today()}.zip"
         proposed_directory = self.journal.config.read("lastBackupDir", os.path.expanduser("~"))
 
         backup_dialog = self.journal.frame.builder.get_object("backup_dialog")

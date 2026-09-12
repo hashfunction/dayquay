@@ -14,6 +14,7 @@ parser.add_argument("--record", type=Path, required=True)
 parser.add_argument("--package", type=Path, required=True)
 parser.add_argument("--source-commit", required=True)
 parser.add_argument("--installed-root", type=Path)
+parser.add_argument("--identity-mode", choices=("qualification", "store"), default="qualification")
 args = parser.parse_args()
 source = Path(__file__).resolve().parents[2]
 actual = subprocess.run(
@@ -41,15 +42,16 @@ if Path(python["path"]).resolve() != Path(sys.executable).resolve() or file_reco
 verify_record_inputs(
     args.package,
     args.record,
-    source / "dist/DayQuay",
-    source / "rednotebook/images/dayquay-icon/dayquay-256.png",
+    source / "dist/Jotmorrow",
+    source / "rednotebook/images/jotmorrow-icon/jotmorrow-256.png",
     actual,
     source / "build-evidence/package-inventory.json",
     source / "build-evidence/windows-startup.json",
     source,
+    args.identity_mode,
 )
 if args.installed_root:
     verify_installed(
-        args.installed_root, _load_json(args.record, "qualification record")["payload"]
+        args.installed_root, _load_json(args.record, "qualification record")["payload"], args.identity_mode
     )
 print("PASS: exact source/stage/notices/startup/package binding reverified before installation")

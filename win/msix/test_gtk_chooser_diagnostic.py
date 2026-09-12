@@ -12,7 +12,7 @@ import gtk_chooser_diagnostic as diagnostic
 class ChooserDiagnosticTests(unittest.TestCase):
     def test_removes_only_exact_owned_empty_probe_tree(self):
         root, token = diagnostic.create_probe_tree()
-        self.assertTrue((root / "DayQuay" / "ReopenProbe").is_dir())
+        self.assertTrue((root / "Jotmorrow" / "ReopenProbe").is_dir())
         diagnostic.remove_probe_tree(root, token)
         self.assertFalse(root.exists())
 
@@ -30,7 +30,7 @@ class ChooserDiagnosticTests(unittest.TestCase):
 
     def test_unexpected_file_preserved_before_any_removal(self):
         root, token = diagnostic.create_probe_tree()
-        extra = root / "DayQuay" / "ReopenProbe" / "unowned.txt"
+        extra = root / "Jotmorrow" / "ReopenProbe" / "unowned.txt"
         try:
             extra.write_text("preserve", encoding="ascii")
             with self.assertRaisesRegex(ValueError, "unexpected"):
@@ -43,7 +43,7 @@ class ChooserDiagnosticTests(unittest.TestCase):
 
     def test_link_substitution_preserves_target(self):
         root, token = diagnostic.create_probe_tree()
-        probe = root / "DayQuay" / "ReopenProbe"
+        probe = root / "Jotmorrow" / "ReopenProbe"
         with tempfile.TemporaryDirectory() as other:
             probe.rmdir()
             try:
@@ -105,8 +105,8 @@ class ChooserDiagnosticTests(unittest.TestCase):
                 self.assertEqual(direct.call_count, int(action == "activate_default"))
 
     def test_path_comparison_keeps_both_spellings_of_one_local_target(self):
-        expected_native = "D:\\a\\_temp\\DayQuay\\Café, notes"
-        expected_forward = "D:/a/_temp/DayQuay/Café, notes"
+        expected_native = "D:\\a\\_temp\\Jotmorrow\\Café, notes"
+        expected_forward = "D:/a/_temp/Jotmorrow/Café, notes"
         for supplied in (expected_native, expected_forward):
             self.assertEqual(diagnostic.chooser_target(supplied, "native"), expected_native)
             self.assertEqual(diagnostic.chooser_target(supplied, "forward_slash"), expected_forward)
@@ -115,8 +115,8 @@ class ChooserDiagnosticTests(unittest.TestCase):
 
     def test_native_path_case_reuses_installed_input_conversion(self):
         with mock.patch.object(diagnostic, "_windows_chooser_path", return_value="converted") as convert:
-            self.assertEqual(diagnostic.chooser_target("C:/DayQuay/data", "native"), "converted")
-        convert.assert_called_once_with("C:/DayQuay/data")
+            self.assertEqual(diagnostic.chooser_target("C:/Jotmorrow/data", "native"), "converted")
+        convert.assert_called_once_with("C:/Jotmorrow/data")
 
     def test_foreign_foreground_refusal_stops_every_action(self):
         for action in diagnostic.ACTIONS:

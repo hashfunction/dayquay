@@ -388,7 +388,7 @@ def convert(txt, target, data_dir, headers=None, options=None):
     # Set the three header fields
     if headers is None:
         # LaTeX requires a title if \maketitle is used.
-        headers = ["DayQuay", "", ""] if target == "tex" else ["", "", ""]
+        headers = ["Jotmorrow", "", ""] if target == "tex" else ["", "", ""]
     config = _get_config(target, options)
 
     # Let's do the conversion

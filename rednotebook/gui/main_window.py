@@ -74,7 +74,7 @@ class MainWindow:
         self.main_frame = self.builder.get_object("main_frame")
         self.main_frame.set_application(journal)
         self.main_frame.set_title(info.program_name)
-        icon = GdkPixbuf.Pixbuf.new_from_file(os.path.join(filesystem.frame_icon_dir, "dayquay-128.png"))
+        icon = GdkPixbuf.Pixbuf.new_from_file(os.path.join(filesystem.frame_icon_dir, "jotmorrow-128.png"))
         self.main_frame.set_icon(icon)
 
         self.is_fullscreen = False
@@ -260,13 +260,13 @@ class MainWindow:
         # the configuration file but we avoid creating the icon.
         if filesystem.IS_WIN:
             self.tray_icon = Gtk.StatusIcon()
-            self.tray_icon.set_name("DayQuay")
+            self.tray_icon.set_name("Jotmorrow")
             visible = self.journal.config.read("closeToTray") == 1
             self.tray_icon.set_visible(visible)
             logging.debug(f"Tray icon visible: {visible}")
 
-            self.tray_icon.set_tooltip_text("DayQuay")
-            icon_file = os.path.join(self.journal.dirs.frame_icon_dir, "dayquay-32.png")
+            self.tray_icon.set_tooltip_text("Jotmorrow")
+            icon_file = os.path.join(self.journal.dirs.frame_icon_dir, "jotmorrow-32.png")
             self.tray_icon.set_from_file(icon_file)
 
             self.tray_icon.connect("activate", self.on_tray_icon_activated)
@@ -303,7 +303,7 @@ class MainWindow:
                 (
                     "Show",
                     None,
-                    _("Show DayQuay"),
+                    _("Show Jotmorrow"),
                     None,
                     None,
                     lambda widget: self.show(),
@@ -431,7 +431,7 @@ class MainWindow:
             html = self.journal.convert(
                 markup_string,
                 "html",
-                headers=[f"{date_string} - DayQuay", "", ""],
+                headers=[f"{date_string} - Jotmorrow", "", ""],
                 options={"toc": 0},
             )
             utils.show_html_in_browser(html, os.path.join(self.journal.dirs.temp_dir, "day.html"))

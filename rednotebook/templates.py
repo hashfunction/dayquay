@@ -72,7 +72,7 @@ You can link to almost everything:
 
 - **links to files on your computer:** [filename.txt ""/path/to/filename.txt""]
 - **links to directories:** [directory name ""/path/to/directory/""]
-- **links to websites:** [DayQuay Homepage ""https://dayquay.trieflow.com""]
+- **links to websites:** [Jotmorrow Homepage ""https://jotmorrow.trieflow.com""]
 
 
 As you see, **bullet lists** are also available. As always you have to add two \

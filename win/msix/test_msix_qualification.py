@@ -34,14 +34,14 @@ def digest(data):
 
 class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
     def setUp(self):
-        self.assertIsNotNone(msix, "DayQuay MSIX qualification is not implemented")
+        self.assertIsNotNone(msix, "Jotmorrow MSIX qualification is not implemented")
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
         self.release = self.root / "release"
         self.source = self.root / "source"
         real_source = Path(__file__).resolve().parents[2]
-        self.artwork = real_source / "rednotebook/images/dayquay-icon/dayquay-256.png"
+        self.artwork = real_source / "rednotebook/images/jotmorrow-icon/jotmorrow-256.png"
         self.commit = "a" * 40
         # Use the actual checked-in title, build definition, notices and artwork.
         for relative in (
@@ -57,7 +57,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
             "rednotebook/external/elibintl.py",
             "win/msix/window_title_contract.py",
             "rednotebook/gui/main_window.py",
-            "rednotebook/images/dayquay-icon",
+            "rednotebook/images/jotmorrow-icon",
             "rednotebook/files",
         ):
             original = real_source / relative
@@ -71,7 +71,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
                 shutil.copyfile(original, target)
         self.release.mkdir()
         files = {
-            "DayQuay.exe": b"PyInstaller embedded bootloader output",
+            "Jotmorrow.exe": b"PyInstaller embedded bootloader output",
             "_internal/libpython3.14.dll": b"MSYS2 Python runtime",
             "_internal/libgtk-3-0.dll": b"GTK3 runtime",
             "_internal/libgtksourceview-4-0.dll": b"GtkSource4 runtime",
@@ -94,7 +94,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
             ("win/THIRD-PARTY-NOTICES.txt", "THIRD-PARTY-NOTICES.txt"),
             ("win/windows-dependencies.json", "windows-dependencies.json"),
             ("LICENSES", "LICENSES"),
-            ("rednotebook/images/dayquay-icon", "images/dayquay-icon"),
+            ("rednotebook/images/jotmorrow-icon", "images/jotmorrow-icon"),
             ("rednotebook/files", "files"),
             ("win/notice-supplement", "notices/supplement"),
         ]:
@@ -177,7 +177,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
                     windows_native_startup=True,
                     window_title=msix.create_title_contract(self.source)["expectedTitle"],
                     window_title_contract=msix.create_title_contract(self.source),
-                    executable_sha256=record["files"]["DayQuay.exe"]["sha256"],
+                    executable_sha256=record["files"]["Jotmorrow.exe"]["sha256"],
                     package_inventory_sha256=digest(self.inventory.read_bytes())["sha256"],
                     interactive_backup_restore_verified=False,
                     native_source_clearance=False,
@@ -206,7 +206,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
         self.assertEqual(
             record["startupReceipt"]["sha256"], digest(self.startup.read_bytes())["sha256"]
         )
-        self.assertEqual(record["runtime"]["executable"], "DayQuay.exe")
+        self.assertEqual(record["runtime"]["executable"], "Jotmorrow.exe")
         self.assertTrue(record["unresolvedNotices"])
         self.assertFalse(record["licenseClearanceClaimed"])
         self.assertFalse(record["publicRelease"])
@@ -259,7 +259,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
         for relative in (
             "_internal/LICENSE",
             "_internal/THIRD-PARTY-NOTICES.txt",
-            "_internal/images/dayquay-icon/dayquay-32.png",
+            "_internal/images/jotmorrow-icon/jotmorrow-32.png",
         ):
             path = self.release / relative
             original = path.read_bytes()
@@ -340,7 +340,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
         actual = Path(__file__).resolve().parents[2]
         self.assertIn("rednotebook/info.py", msix.source_inputs(actual))
         for relative, before, after in [
-            ("rednotebook/info.py", 'program_name = "DayQuay"', 'program_name = "Drift"'),
+            ("rednotebook/info.py", 'program_name = "Jotmorrow"', 'program_name = "Drift"'),
             (
                 "rednotebook/gui/main_window.py",
                 "set_title(info.program_name)",
@@ -389,7 +389,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
         )
         titles = []
         namespace.update(
-            info=types.SimpleNamespace(program_name="DayQuay"),
+            info=types.SimpleNamespace(program_name="Jotmorrow"),
             dates=types.SimpleNamespace(format_date=namespace["format_date"]),
         )
         exec(
@@ -405,7 +405,7 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
         )
         namespace["set_frame_title"](journal)
         title = titles.pop()
-        self.assertNotEqual(title, "DayQuay")
+        self.assertNotEqual(title, "Jotmorrow")
         receipt = json.loads(self.startup.read_text())
         receipt.update(
             window_title=title,
@@ -426,8 +426,8 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
             ("executable_sha256", "f" * 64),
             ("package_inventory_sha256", "f" * 64),
             ("windows_native_startup", False),
-            ("window_title", "DayQuay error"),
-            ("window_title", "DayQuay"),
+            ("window_title", "Jotmorrow error"),
+            ("window_title", "Jotmorrow"),
             ("window_title", original["window_title"] + " "),
             ("window_title", original["window_title"] + " - error"),
             ("window_title_contract", None),
@@ -441,8 +441,8 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
     def test_coherently_changed_title_contract_is_rejected(self):
         original = json.loads(self.startup.read_text())
         for key, value in [
-            ("expectedTitle", "DayQuay"),
-            ("expectedTitle", "DayQuay - error"),
+            ("expectedTitle", "Jotmorrow"),
+            ("expectedTitle", "Jotmorrow - error"),
             ("localDate", "2000-01-01"),
             ("locale", "unobserved-locale"),
             ("schemaVersion", True),
@@ -703,8 +703,8 @@ class QualificationTests(WindowsJunctionFixture, unittest.TestCase):
         package, record = self.package()
         for before, after in [
             (b"runFullTrust", b"internetClient"),
-            (b"DayQuay.exe", b"other.exe"),
-            (b"CN=DayQuay-CI-Qualification", b"CN=foreign"),
+            (b"Jotmorrow.exe", b"other.exe"),
+            (b"CN=Jotmorrow-CI-Qualification", b"CN=foreign"),
         ]:
             data = (self.root / "stage/AppxManifest.xml").read_bytes().replace(before, after)
             with self.assertRaises(ValueError):

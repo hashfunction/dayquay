@@ -76,7 +76,7 @@ class AutostartOption(TickOption):
         self.autostart_file = os.path.expanduser("~/.config/autostart/rednotebook.desktop")
         autostart_file_exists = os.path.exists(self.autostart_file)
         TickOption.__init__(
-            self, _("Load DayQuay at startup"), None, value=autostart_file_exists
+            self, _("Load Jotmorrow at startup"), None, value=autostart_file_exists
         )
 
     def get_value(self):
@@ -294,7 +294,7 @@ class OptionsManager:
                 TickOption(
                     _("Close to system tray"),
                     "closeToTray",
-                    tooltip=_("Closing the window will send DayQuay to the tray"),
+                    tooltip=_("Closing the window will send Jotmorrow to the tray"),
                 )
             )
 

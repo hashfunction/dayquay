@@ -1,4 +1,4 @@
-"""Preserve installed native notices and record the exact DayQuay stage.
+"""Preserve installed native notices and record the exact Jotmorrow stage.
 Copyright 2026 Trieflow LLC. MIT; packaging helper only, not a license clearance.
 """
 
@@ -72,7 +72,7 @@ def main():
     ).stdout.strip()
     if commit != os.environ.get("GITHUB_SHA"):
         raise SystemExit("Source differs from this native build")
-    release = source / "dist/DayQuay"
+    release = source / "dist/Jotmorrow"
     evidence = source / "build-evidence"
     notices = collect_notices(Path(sys.prefix), release)
     # PyEnchant is installed separately from pacman. Preserve available installed

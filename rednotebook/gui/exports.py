@@ -495,7 +495,7 @@ class Exporter:
     def DEFAULTPATH(self):
         return os.path.join(
             os.path.expanduser("~"),
-            f"DayQuay-Export_{datetime.date.today()}.{self.EXTENSION}",
+            f"Jotmorrow-Export_{datetime.date.today()}.{self.EXTENSION}",
         )
 
 

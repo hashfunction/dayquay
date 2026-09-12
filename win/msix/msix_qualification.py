@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build and independently verify a disposable DayQuay qualification MSIX.
+"""Build and independently verify a disposable Jotmorrow qualification MSIX.
 
 Copyright 2026 Trieflow LLC. MIT licensed. Derived from PixelQuay qualification
 source b7672df853a9e182ed1b081c03ab800dc3dbc778, TwinQuay
@@ -41,20 +41,41 @@ ET.register_namespace("uap", UAP_NS)
 ET.register_namespace("rescap", RESCAP_NS)
 
 QUALIFICATION_IDENTITY = {
-    "packageName": "Trieflow.DayQuay.Qualification",
-    "publisher": "CN=DayQuay-CI-Qualification",
-    "version": "1.0.0.0",
+    "packageName": "Trieflow.Jotmorrow.Qualification",
+    "publisher": "CN=Jotmorrow-CI-Qualification",
+    "version": "1.0.1.0",
     "architecture": "x64",
     "applicationId": "DayQuay",
-    "executable": "DayQuay.exe",
+    "executable": "Jotmorrow.exe",
     "deviceFamily": "Windows.Desktop",
     "minVersion": "10.0.19041.0",
     "maxVersionTested": "10.0.26100.0",
     "capability": "runFullTrust",
 }
+STORE_IDENTITY = {
+    **QUALIFICATION_IDENTITY,
+    "packageName": "1659hashfunction.DayQuay",
+    "publisher": "CN=B6A2631A-FD32-45CC-AE12-82466975F528",
+}
+
+
+def identity_for_mode(identity_mode):
+    if identity_mode == "qualification":
+        return dict(QUALIFICATION_IDENTITY)
+    if identity_mode == "store":
+        return dict(STORE_IDENTITY)
+    raise ValueError("Only fixed qualification or Store identity is allowed")
+
+
+def _manifest_presentation(identity_mode):
+    identity_for_mode(identity_mode)
+    return (("hashfunction", "Private journaling with tags and portable backups")
+            if identity_mode == "store" else ("Trieflow LLC", "Jotmorrow qualification package"))
+
+
 # This is the observed MSYS2 UCRT64 layout, not CPython.org or Qt.
 RUNTIME = {
-    "executable": "DayQuay.exe",
+    "executable": "Jotmorrow.exe",
     "python": "_internal/libpython3.14.dll",
     "gtk": "_internal/libgtk-3-0.dll",
     "gtkSource": "_internal/libgtksourceview-4-0.dll",
@@ -71,7 +92,7 @@ REQUIRED_RELEASE_FILES = tuple(RUNTIME.values()) + (
     "_internal/copyright",
     "_internal/THIRD-PARTY-NOTICES.txt",
     "_internal/windows-dependencies.json",
-    "_internal/images/dayquay-icon/dayquay-256.png",
+    "_internal/images/jotmorrow-icon/jotmorrow-256.png",
 )
 SOURCE_COPIES = {
     "LICENSE": "LICENSE",
@@ -81,7 +102,7 @@ SOURCE_COPIES = {
 }
 SOURCE_TREES = {
     "LICENSES": "LICENSES",
-    "rednotebook/images/dayquay-icon": "images/dayquay-icon",
+    "rednotebook/images/jotmorrow-icon": "images/jotmorrow-icon",
     "rednotebook/files": "files",
     "win/notice-supplement": "notices/supplement",
 }
@@ -267,7 +288,7 @@ def source_inputs(source_root):
         and node.func.attr == "set_title"
     ]
     if (
-        titles != ["DayQuay"]
+        titles != ["Jotmorrow"]
         or len(calls) != 1
         or len(calls[0].args) != 1
         or not (
@@ -277,7 +298,7 @@ def source_inputs(source_root):
             and calls[0].args[0].value.id == "info"
         )
     ):
-        raise ValueError("Actual GTK main-window title differs from exact DayQuay contract")
+        raise ValueError("Actual GTK main-window title differs from exact Jotmorrow contract")
     create_title_contract(source_root)
     result = {
         name: file_record(source_root / name)
@@ -437,7 +458,7 @@ def validate_input_evidence(release, inventory, startup, source_root, source_com
         or receipt.get("windows_native_startup") is not True
         or receipt.get("window_title") != expected_title
         or str(receipt.get("executable_sha256", "")).lower()
-        != measured["files"]["DayQuay.exe"]["sha256"]
+        != measured["files"]["Jotmorrow.exe"]["sha256"]
         or receipt.get("package_inventory_sha256") != file_record(inventory)["sha256"]
     ):
         raise ValueError(
@@ -446,8 +467,9 @@ def validate_input_evidence(release, inventory, startup, source_root, source_com
     return recorded, receipt
 
 
-def create_manifest():
-    identity = QUALIFICATION_IDENTITY
+def create_manifest(identity_mode="qualification"):
+    identity = identity_for_mode(identity_mode)
+    publisher_display, description = _manifest_presentation(identity_mode)
     package = ET.Element(f"{{{APPX_NS}}}Package", {"IgnorableNamespaces": "uap rescap"})
     ET.SubElement(
         package,
@@ -461,9 +483,9 @@ def create_manifest():
     )
     properties = ET.SubElement(package, f"{{{APPX_NS}}}Properties")
     for name, value in (
-        ("DisplayName", "DayQuay"),
-        ("PublisherDisplayName", "Trieflow LLC"),
-        ("Description", "DayQuay qualification package"),
+        ("DisplayName", "Jotmorrow"),
+        ("PublisherDisplayName", publisher_display),
+        ("Description", description),
         ("Logo", r"Assets\StoreLogo.png"),
     ):
         ET.SubElement(properties, f"{{{APPX_NS}}}{name}").text = value
@@ -493,8 +515,8 @@ def create_manifest():
         application,
         f"{{{UAP_NS}}}VisualElements",
         {
-            "DisplayName": "DayQuay",
-            "Description": "DayQuay qualification package",
+            "DisplayName": "Jotmorrow",
+            "Description": description,
             "BackgroundColor": "#142e38",
             "Square150x150Logo": r"Assets\Square150x150Logo.png",
             "Square44x44Logo": r"Assets\Square44x44Logo.png",
@@ -513,7 +535,8 @@ def _one(parent, tag, label):
     return items[0]
 
 
-def validate_manifest(data):
+def validate_manifest(data, identity_mode="qualification"):
+    publisher_display, description = _manifest_presentation(identity_mode)
     try:
         root = ET.fromstring(data)
     except ET.ParseError as error:
@@ -531,7 +554,7 @@ def validate_manifest(data):
     if [child.tag for child in root] != expected_children:
         raise ValueError("Unexpected manifest sections or extensions")
     identity_node = _one(root, f"{{{APPX_NS}}}Identity", "identity")
-    identity = QUALIFICATION_IDENTITY
+    identity = identity_for_mode(identity_mode)
     if identity_node.attrib != {
         "Name": identity["packageName"],
         "Publisher": identity["publisher"],
@@ -541,9 +564,9 @@ def validate_manifest(data):
         raise ValueError("Unexpected qualification identity")
     properties = _one(root, f"{{{APPX_NS}}}Properties", "properties")
     expected_properties = {
-        "DisplayName": "DayQuay",
-        "PublisherDisplayName": "Trieflow LLC",
-        "Description": "DayQuay qualification package",
+        "DisplayName": "Jotmorrow",
+        "PublisherDisplayName": publisher_display,
+        "Description": description,
         "Logo": r"Assets\StoreLogo.png",
     }
     if (
@@ -582,8 +605,8 @@ def validate_manifest(data):
         len(application) != 1
         or visual.attrib
         != {
-            "DisplayName": "DayQuay",
-            "Description": "DayQuay qualification package",
+            "DisplayName": "Jotmorrow",
+            "Description": description,
             "BackgroundColor": "#142e38",
             "Square150x150Logo": r"Assets\Square150x150Logo.png",
             "Square44x44Logo": r"Assets\Square44x44Logo.png",
@@ -731,7 +754,8 @@ def _write_new(path, data):
         os.fsync(output.fileno())
 
 
-def stage_release(release, artwork, stage, source_commit, inventory, startup, source_root):
+def stage_release(release, artwork, stage, source_commit, inventory, startup, source_root, identity_mode="qualification"):
+    identity = identity_for_mode(identity_mode)
     release, artwork, stage = Path(release), Path(artwork), Path(stage)
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit or ""):
         raise ValueError("Exact 40-character source commit is required")
@@ -775,8 +799,8 @@ def stage_release(release, artwork, stage, source_commit, inventory, startup, so
                 "sha256": hashlib.sha256(data).hexdigest(),
                 "pixels": [size, size],
             }
-        manifest = create_manifest()
-        validate_manifest(manifest)
+        manifest = create_manifest(identity_mode)
+        validate_manifest(manifest, identity_mode)
         _write_new(stage / "AppxManifest.xml", manifest)
         if inventory_tree(release) != input_inventory:
             raise ValueError("Release input changed while staging")
@@ -787,8 +811,10 @@ def stage_release(release, artwork, stage, source_commit, inventory, startup, so
         return {
             "schemaVersion": 1,
             "sourceCommit": source_commit,
-            "qualificationIdentityOnly": True,
-            "identity": dict(QUALIFICATION_IDENTITY),
+            "qualificationIdentityOnly": identity_mode == "qualification",
+            "identityMode": identity_mode,
+            "storeIdentityUsed": identity_mode == "store",
+            "identity": identity,
             "releaseInput": input_inventory,
             "payload": payload,
             "inputInventory": file_record(inventory),
@@ -819,7 +845,8 @@ def _decode_opc_path(value):
     return _checked_path(unquote(value, encoding="utf-8", errors="strict"))
 
 
-def verify_msix(path, expected):
+def verify_msix(path, expected, identity_mode="qualification"):
+    identity_for_mode(identity_mode)
     if not isinstance(expected, dict) or "AppxManifest.xml" not in expected:
         raise ValueError("Invalid expected package payload")
     allowed_directories = {
@@ -871,35 +898,38 @@ def verify_msix(path, expected):
         raise ValueError("Package payload is missing expected files")
     if not {"[Content_Types].xml", "AppxBlockMap.xml"}.issubset(metadata):
         raise ValueError("Package metadata is incomplete")
-    validate_manifest(manifest_data)
+    validate_manifest(manifest_data, identity_mode)
     with _regular_stream(path) as stream:
         package = _digest(stream)
     return {"verifiedPayloadFiles": len(actual), "metadata": sorted(metadata), "package": package}
 
 
-def verify_unpacked(root, expected):
+def verify_unpacked(root, expected, identity_mode="qualification"):
+    identity_for_mode(identity_mode)
     actual = inventory_tree(root)
     for metadata in PACKAGE_METADATA:
         actual.pop(metadata, None)
     if actual != expected:
         raise ValueError("SDK-unpacked payload differs from staged payload")
-    validate_manifest((Path(root) / "AppxManifest.xml").read_bytes())
+    validate_manifest((Path(root) / "AppxManifest.xml").read_bytes(), identity_mode)
     return {"verifiedPayloadFiles": len(actual)}
 
 
-def verify_installed(root, expected):
+def verify_installed(root, expected, identity_mode="qualification"):
+    identity_for_mode(identity_mode)
     actual = inventory_tree(root)
     for metadata in PACKAGE_METADATA | {"AppxSignature.p7x"}:
         actual.pop(metadata, None)
     if actual != expected:
         raise ValueError("Installed package has missing, altered or extra payload files")
-    validate_manifest((Path(root) / "AppxManifest.xml").read_bytes())
+    validate_manifest((Path(root) / "AppxManifest.xml").read_bytes(), identity_mode)
     return {"verifiedPayloadFiles": len(actual)}
 
 
 def verify_record_inputs(
-    package, record_path, release, artwork, source_commit, inventory, startup, source_root
+    package, record_path, release, artwork, source_commit, inventory, startup, source_root, identity_mode="qualification"
 ):
+    identity_for_mode(identity_mode)
     record = _load_json(record_path, "qualification record")
     # Recreate the package boundary from current source/stage/receipt rather than
     # trusting a coherent replacement of the package and its own recorded hashes.
@@ -912,6 +942,7 @@ def verify_record_inputs(
             inventory,
             startup,
             source_root,
+            identity_mode,
         )
     if any(record.get(key) != value for key, value in expected.items()):
         raise ValueError("Package record no longer matches source-bound qualification inputs")
@@ -923,7 +954,7 @@ def verify_record_inputs(
         or unpacked["verifiedPayloadFiles"] != len(expected["payload"])
     ):
         raise ValueError("SDK unpack verification differs from complete source-bound payload")
-    actual = verify_msix(package, expected["payload"])
+    actual = verify_msix(package, expected["payload"], identity_mode)
     if record.get("containerVerification") != actual:
         raise ValueError("Package record differs from independent container verification")
     return True
@@ -962,7 +993,9 @@ def build_qualification(
     startup,
     source_root,
     runner=_run,
+    identity_mode="qualification",
 ):
+    identity_for_mode(identity_mode)
     output = Path(output).absolute()
     if os.path.lexists(output):
         raise ValueError(f"Output already exists and will not be replaced: {output}")
@@ -972,9 +1005,9 @@ def build_qualification(
         tool = _tool_record(makeappx, sdk_version)
         stage = temporary / "stage"
         record = stage_release(
-            release, artwork, stage, source_commit, inventory, startup, source_root
+            release, artwork, stage, source_commit, inventory, startup, source_root, identity_mode
         )
-        package = temporary / "DayQuay.Qualification_1.0.0.0_x64.msix"
+        package = temporary / ("Jotmorrow_1.0.1.0_x64.msix" if identity_mode == "store" else "Jotmorrow.Qualification_1.0.1.0_x64.msix")
         unpacked = temporary / "unpacked"
         commands = [
             [str(makeappx), "pack", "/d", str(stage), "/p", str(package), "/v", "/h", "SHA256"],
@@ -986,8 +1019,8 @@ def build_qualification(
             runner(command)
             if inventory_tree(stage) != record["payload"]:
                 raise ValueError("Package stage changed during SDK execution")
-        container = verify_msix(package, record["payload"])
-        unpacked_result = verify_unpacked(unpacked, record["payload"])
+        container = verify_msix(package, record["payload"], identity_mode)
+        unpacked_result = verify_unpacked(unpacked, record["payload"], identity_mode)
         if _tool_record(makeappx, sdk_version) != tool:
             raise ValueError("MakeAppx changed during qualification build")
         record.update(
@@ -1030,6 +1063,7 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--inventory", type=Path, required=True)
     parser.add_argument("--startup", type=Path, required=True)
+    parser.add_argument("--identity-mode", choices=("qualification", "store"), default="qualification")
     args = parser.parse_args()
     if sys.platform != "win32" or os.environ.get("CI") != "true":
         parser.error("Qualification package builds require disposable Windows CI")
@@ -1067,6 +1101,7 @@ def main():
                 args.inventory,
                 args.startup,
                 args.source_root,
+                identity_mode=args.identity_mode,
             )
         )
     except (OSError, ValueError, subprocess.SubprocessError) as error:

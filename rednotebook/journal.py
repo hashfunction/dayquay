@@ -259,7 +259,7 @@ class Journal(Gtk.Application):
         self.config["firstStart"] = 0
         logging.info(f"First Start: {bool(self.is_first_start)}")
 
-        logging.info(f"DayQuay version: {info.version}")
+        logging.info(f"Jotmorrow version: {info.version}")
         logging.info(filesystem.get_platform_info())
 
         self.actual_date = self.get_start_date()
@@ -302,7 +302,7 @@ class Journal(Gtk.Application):
         )
         dialog.format_secondary_text(
             _(
-                "DayQuay found a separate RedNotebook profile at %s. "
+                "Jotmorrow found a separate RedNotebook profile at %s. "
                 "Importing copies its journal, templates, and settings; "
                 "the original stays unchanged."
             )

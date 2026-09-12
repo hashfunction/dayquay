@@ -100,7 +100,7 @@ class RestoreAssistant:
 
     def _select_backup(self):
         dialog = Gtk.FileChooserDialog(
-            title=_("Select a DayQuay portable backup"),
+            title=_("Select a Jotmorrow portable backup"),
             parent=self.parent,
             action=Gtk.FileChooserAction.OPEN,
         )

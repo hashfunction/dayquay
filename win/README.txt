@@ -1,4 +1,4 @@
-DAYQUAY WINDOWS SOURCE BUILD
+JOTMORROW WINDOWS SOURCE BUILD
 ============================
 
 The qualified build environment is MSYS2 UCRT64. The root-owned workflow
@@ -46,7 +46,7 @@ adapted to the retained provider import graph. Windows loading remains required.
 
 Optional legacy Inno installer handoff (MSIX remains root-owned):
 
-  iscc /DREDNOTEBOOK_VERSION=2.42.0.1 win/rednotebook.iss
+  iscc /DREDNOTEBOOK_VERSION=1.0.1 win/rednotebook.iss
 
 Do not distribute a binary until the Windows app itself has run successfully,
 the package contents and uninstall behavior have been checked, and the complete
@@ -56,7 +56,7 @@ an application build.
 ORIGINAL NOTICE DISTRIBUTION
 ============================
 
-The canonical source landing page is https://dayquay.trieflow.com/source. It
+The canonical source landing page is https://jotmorrow.trieflow.com/source. It
 links the application source and the matching dependency source/recipe delivery.
 win/notice-supplement is the checked-in notice subset of that verified source
 collection: 648 unchanged originals (3,384,225 bytes) plus index.json. The index
@@ -69,7 +69,7 @@ The existing same-run CI post-build command:
 
   python win/record-package-inventory.py
 
-copies these originals to dist/DayQuay/_internal/notices/supplement beside the
+copies these originals to dist/Jotmorrow/_internal/notices/supplement beside the
 installed native and PyEnchant notice trees. It validates the source index
 before copying and rechecks source and destination bytes afterward. The full
 source-to-stage inventory requires every original copy, so a refreshed notice

@@ -1,4 +1,4 @@
-"""Real PyInstaller dependency-TOC algorithm and DayQuay spec integration.
+"""Real PyInstaller dependency-TOC algorithm and Jotmorrow spec integration.
 
 Only native PE import discovery is adapted to the retained Enchant/Hunspell
 import graph. DLL fixture bytes are inert; native loading remains a Windows gate.

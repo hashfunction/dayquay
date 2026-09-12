@@ -151,7 +151,7 @@ class MainMenuBar:
                     None,
                     _("Quit"),
                     "<Ctrl>q",
-                    _("Shutdown DayQuay. It will not be sent to the tray."),
+                    _("Shutdown Jotmorrow. It will not be sent to the tray."),
                     self.main_window.on_quit_activate,
                 ),
                 ("Edit", None, _("_Edit")),
@@ -241,7 +241,7 @@ class MainMenuBar:
                     None,
                     _("Contents"),
                     "<Ctrl>h",
-                    _("Open the DayQuay documentation"),
+                    _("Open the Jotmorrow documentation"),
                     self.on_help_menu_item_activate,
                 ),
                 (
@@ -257,7 +257,7 @@ class MainMenuBar:
                     None,
                     _("Give Feedback"),
                     None,
-                    _("How can we improve DayQuay?"),
+                    _("How can we improve Jotmorrow?"),
                     self.on_give_feedback,
                 ),
                 ("Info", None, _("About"), None, None, self.on_info_activate),
@@ -409,7 +409,7 @@ class MainMenuBar:
         html = self.journal.convert(
             help_text,
             "html",
-            headers=[_("DayQuay Documentation"), info.version, ""],
+            headers=[_("Jotmorrow Documentation"), info.version, ""],
             options={"toc": 1},
         )
         utils.show_html_in_browser(html, os.path.join(temp_dir, "help.html"))
@@ -439,7 +439,7 @@ class MainMenuBar:
         self.info_dialog.set_authors(info.developers)
         self.info_dialog.add_credit_section(_("Contributors:"), [info.contributors_url])
         self.info_dialog.set_translator_credits(_("translator-credits"))
-        img_path = os.path.join(filesystem.image_dir, "dayquay-icon", "dayquay-128.png")
+        img_path = os.path.join(filesystem.image_dir, "jotmorrow-icon", "jotmorrow-128.png")
         self.info_dialog.set_logo(GdkPixbuf.Pixbuf.new_from_file(img_path))
         self.info_dialog.set_license_type(Gtk.License.GPL_3_0)
         self.info_dialog.run()

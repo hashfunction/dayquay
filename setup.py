@@ -17,9 +17,9 @@
 # -----------------------------------------------------------------------
 
 """
-This is the installation script for DayQuay.
+This is the installation script for Jotmorrow.
 
-To install DayQuay, run "pip install ." (note the dot).
+To install Jotmorrow, run "pip install ." (note the dot).
 """
 
 import shutil
@@ -69,11 +69,11 @@ class install(_install):
             shutil.copy2(lang_file, dest_dir / "rednotebook.mo")
 
 
-installation_note = "See https://dayquay.trieflow.com for supported packages."
+installation_note = "See https://jotmorrow.trieflow.com for supported packages."
 
 
 parameters = {
-    "name": "dayquay",
+    "name": "jotmorrow",
     "version": info.version,
     "description": "Graphical daily journal with calendar, templates and keyword searching",
     "long_description": info.comments + "\n\n" + installation_note,
@@ -89,7 +89,7 @@ parameters = {
     "extras_require": {"spellcheck": ["pyenchant"]},
     "entry_points": {
         "gui_scripts": [
-            "dayquay = rednotebook.journal:main",
+            "jotmorrow = rednotebook.journal:main",
         ],
     },
     "packages": [
@@ -101,8 +101,8 @@ parameters = {
     "package_data": {
         "rednotebook": [
             "images/*.png",
-            "images/dayquay-icon/*.png",
-            "images/dayquay-icon/dayquay.svg",
+            "images/jotmorrow-icon/*.png",
+            "images/jotmorrow-icon/jotmorrow.svg",
             "files/*.cfg",
             "files/*.glade",
             "files/*.lang",
@@ -110,12 +110,12 @@ parameters = {
         ]
     },
     "data_files": [
-        ("share/applications", ["data/dayquay.desktop"]),
+        ("share/applications", ["data/jotmorrow.desktop"]),
         (
             "share/icons/hicolor/scalable/apps",
-            ["rednotebook/images/dayquay-icon/dayquay.svg"],
+            ["rednotebook/images/jotmorrow-icon/jotmorrow.svg"],
         ),
-        ("share/metainfo", ["data/dayquay.appdata.xml"]),
+        ("share/metainfo", ["data/jotmorrow.appdata.xml"]),
     ],
 }
 

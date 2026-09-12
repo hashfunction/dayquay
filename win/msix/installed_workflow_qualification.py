@@ -1,4 +1,4 @@
-"""Drive and independently verify DayQuay's installed consumer workflow."""
+"""Drive and independently verify Jotmorrow's installed consumer workflow."""
 
 import argparse
 import ctypes
@@ -194,10 +194,10 @@ def verify_protected_backup(archive, saved, original_backup):
 def restored_window_title(initial_title, restore_name):
     if not RESTORE_NAME.fullmatch(restore_name or ""):
         raise ValueError("invalid restore qualification folder name")
-    prefix = "DayQuay - "
+    prefix = "Jotmorrow - "
     if not initial_title.startswith(prefix) or initial_title.count(" - ") != 1:
         raise ValueError("initial title is not the default journal title contract")
-    return f"DayQuay - {restore_name} - {initial_title[len(prefix):]}"
+    return f"Jotmorrow - {restore_name} - {initial_title[len(prefix):]}"
 
 
 def _eventually(operation, label, timeout=15.0):
@@ -740,7 +740,7 @@ class _WindowsInput:
         self.press("END")
         self.press("UP", 2)
         self.press("ENTER")
-        self._select_path("Select a DayQuay portable backup", archive, "I")
+        self._select_path("Select a Jotmorrow portable backup", archive, "I")
 
         hwnd = self._wait_window("Restore portable backup")
         self._foreground(hwnd, "Restore portable backup")
@@ -805,6 +805,10 @@ def main():
             reopen_marker=args.reopen_marker,
             initial_title=args.initial_title,
         )
+        evidence["source_commit"] = os.environ.get("GITHUB_SHA")
+        evidence["workflow_run_id"] = os.environ.get("GITHUB_RUN_ID")
+        evidence["workflow_run_attempt"] = os.environ.get("GITHUB_RUN_ATTEMPT")
+        evidence["helper_sha256"] = _sha256(Path(__file__).read_bytes())
         evidence["process_id"] = args.process_id
         evidence["main_window_handle"] = args.main_window_handle
         _write_json_exclusive(args.output, evidence)

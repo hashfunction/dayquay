@@ -1,4 +1,4 @@
-# Disposable Windows CI installation qualification for DayQuay.
+# Disposable Windows CI installation qualification for Jotmorrow.
 # Copyright 2026 Trieflow LLC. MIT licensed.
 # Installation-flow structure adapted from ReticleQuay's MIT helper; the full
 # retained notice is in RETICLEQUAY-MIT.txt.
@@ -8,6 +8,7 @@ param(
     [Parameter()][string]$PackageRecord,
     [Parameter()][string]$SignTool,
     [Parameter()][string]$Output,
+    [Parameter()][ValidateSet("qualification","store")][string]$IdentityMode="qualification",
     [Parameter()][switch]$LibraryOnly
 )
 
@@ -274,7 +275,7 @@ function Assert-DayQuayWindowEvidence($Snapshot, [string]$ExpectedTitle) {
     if (-not (Test-DayQuayWindowTitle $Snapshot.title $ExpectedTitle) -or $Snapshot.expected_title -cne $ExpectedTitle -or -not $Snapshot.visible -or $Snapshot.process_id -le 0 -or
         $Snapshot.width -lt 400 -or $Snapshot.height -lt 300 -or $Snapshot.width -gt 8192 -or $Snapshot.height -gt 8192 -or
         -not $Snapshot.screenshot_captured -or $Snapshot.screenshot_sha256 -cnotmatch '^[0-9a-f]{64}$' -or
-        $Snapshot.sampled_colors -lt 16) { throw 'Missing exact rendered DayQuay window/screenshot evidence.' }
+        $Snapshot.sampled_colors -lt 16) { throw 'Missing exact rendered Jotmorrow window/screenshot evidence.' }
     if ($Snapshot.accessibility_scope -cne 'GTK startup only; journal/backup/restore workflows untested') {
         throw 'GTK startup evidence must retain its explicit workflow limitation.'
     }
@@ -285,7 +286,7 @@ function Assert-DayQuayWindowEvidence($Snapshot, [string]$ExpectedTitle) {
     if ($Snapshot.startup_limited -ne ($actionable -eq 0) -or
         $Snapshot.actionable_controls_verified -ne ($actionable -gt 0)) { throw 'GTK accessibility claims differ from observed controls.' }
     if (@($Snapshot.top_level_windows | Where-Object { -not $_.offscreen -and -not (Test-DayQuayWindowTitle $_.name $ExpectedTitle) }).Count) {
-        throw 'Unexpected additional top-level surface in the owned DayQuay process.'
+        throw 'Unexpected additional top-level surface in the owned Jotmorrow process.'
     }
 }
 
@@ -304,7 +305,7 @@ function Get-WindowQualification([Diagnostics.Process]$Process, [string]$OutputD
     $root = [Windows.Automation.AutomationElement]::FromHandle($Process.MainWindowHandle)
     if (-not $root) { throw 'UI Automation could not bind the activated main window.' }
     $rootBounds = $root.Current.BoundingRectangle
-    if (-not (Test-DayQuayWindowTitle $root.Current.Name $ExpectedTitle) -or $root.Current.ProcessId -ne $Process.Id) { throw 'UIA root is not the exact owned DayQuay window.' }
+    if (-not (Test-DayQuayWindowTitle $root.Current.Name $ExpectedTitle) -or $root.Current.ProcessId -ne $Process.Id) { throw 'UIA root is not the exact owned Jotmorrow window.' }
     if ($root.Current.IsOffscreen -or $rootBounds.Width -lt 400 -or $rootBounds.Height -lt 300 -or $rootBounds.Width -gt 8192 -or $rootBounds.Height -gt 8192) { throw 'Activated main window is not visibly rendered.' }
     $topLevelWindows = [Collections.Generic.List[object]]::new()
     $processCondition = [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty, $Process.Id)
@@ -420,7 +421,7 @@ function Get-WindowQualification([Diagnostics.Process]$Process, [string]$OutputD
         $screenshotError = $_.Exception.Message
     }
     $snapshot = [ordered]@{
-        expected_title=$ExpectedTitle; title=$root.Current.Name; process_id=$Process.Id; visible=(-not $root.Current.IsOffscreen)
+        expected_title=$ExpectedTitle; title=$root.Current.Name; process_id=$Process.Id; main_window_handle=$root.Current.NativeWindowHandle; visible=(-not $root.Current.IsOffscreen)
         width=$rootBounds.Width; height=$rootBounds.Height; controls=@($items)
         screenshot_sha256=$screenshotHash; sampled_colors=$colors.Count
         accessible_elements = $items.Count
@@ -574,7 +575,7 @@ function Write-NewUtf8Text([string]$Path, [string]$Value) {
 
 function New-DayQuayWorkflowProfile([string]$ProfileRoot, [string]$OwnershipToken) {
     if (-not $OwnershipToken -or $OwnershipToken -cnotmatch '^[0-9a-f]{32}$') { throw 'Invalid workflow-profile ownership token.' }
-    if (Test-Path -LiteralPath $ProfileRoot) { throw 'Existing DayQuay profile must be preserved.' }
+    if (Test-Path -LiteralPath $ProfileRoot) { throw 'Existing Jotmorrow profile must be preserved.' }
     Assert-NoReparsePath ([IO.Path]::GetDirectoryName((Get-CanonicalPath $ProfileRoot)))
     New-Item -ItemType Directory -Path $ProfileRoot -ErrorAction Stop | Out-Null
     $ownership = $null
@@ -622,7 +623,36 @@ function Remove-DayQuayWorkflowProfile($Ownership) {
     return $true
 }
 
-function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$RecordPath, [string]$SignToolPath, [string]$OutputPath) {
+function Get-DayQuayExpectedIdentity([ValidateSet('qualification','store')][string]$Mode='qualification') {
+    $identity = [ordered]@{
+        packageName='Trieflow.Jotmorrow.Qualification'; publisher='CN=Jotmorrow-CI-Qualification'; version='1.0.1.0'
+        architecture='x64'; applicationId='DayQuay'; executable='Jotmorrow.exe'
+        deviceFamily='Windows.Desktop'; minVersion='10.0.19041.0'; maxVersionTested='10.0.26100.0'; capability='runFullTrust'
+    }
+    if ($Mode -eq 'store') {
+        $identity.packageName='1659hashfunction.DayQuay'
+        $identity.publisher='CN=B6A2631A-FD32-45CC-AE12-82466975F528'
+    }
+    return $identity
+}
+
+function Assert-DayQuayIdentityRecord($Record, [ValidateSet('qualification','store')][string]$Mode='qualification') {
+    $expected=Get-DayQuayExpectedIdentity $Mode
+    if ($Record.schemaVersion -ne 1 -or $Record.identityMode -cne $Mode -or
+        $Record.qualificationIdentityOnly -isnot [bool] -or $Record.qualificationIdentityOnly -ne ($Mode -eq 'qualification') -or
+        $Record.storeIdentityUsed -isnot [bool] -or $Record.storeIdentityUsed -ne ($Mode -eq 'store')) {
+        throw 'Package record has a different fixed identity mode.'
+    }
+    foreach ($flag in @('signed','publicRelease','licenseClearanceClaimed','installationQualificationPassed')) {
+        if ($Record.$flag -isnot [bool] -or $Record.$flag) {throw "Package record has unqualified release claim: $flag"}
+    }
+    if (@($Record.identity.PSObject.Properties).Count -ne $expected.Count) {throw 'Unexpected identity fields'}
+    foreach ($field in $expected.Keys) {
+        if ([string]$Record.identity.$field -cne [string]$expected[$field]) {throw "Fixed identity mismatch: $field"}
+    }
+}
+
+function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$RecordPath, [string]$SignToolPath, [string]$OutputPath, [ValidateSet("qualification","store")][string]$IdentityMode="qualification") {
     $state = [ordered]@{
         package = $null; record = $null; output = $null; temporary = $null; signedCopy = $null
         publicCertificate = $null; certificate = $null; trustedCertificate = $null; trustAttempted = $false
@@ -636,11 +666,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         workflowArchive = $null; workflowRestoreName = 'RestoredQualification'; workflowSentinel = $null; workflowReopenMarker = $null
         workflowDiagnosticError = $null
     }
-    $expectedIdentity = [ordered]@{
-        packageName='Trieflow.DayQuay.Qualification'; publisher='CN=DayQuay-CI-Qualification'; version='1.0.0.0'
-        architecture='x64'; applicationId='DayQuay'; executable='DayQuay.exe'
-        deviceFamily='Windows.Desktop'; minVersion='10.0.19041.0'; maxVersionTested='10.0.26100.0'; capability='runFullTrust'
-    }
+    $expectedIdentity = Get-DayQuayExpectedIdentity $IdentityMode
 
     $operations = [ordered]@{}
     $operations.Preflight = {
@@ -659,14 +685,9 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         $state.record = Get-Content -LiteralPath $recordFile -Raw -Encoding utf8 | ConvertFrom-Json
         if ($state.record.sourceCommit -cne $env:GITHUB_SHA) { throw 'Package source differs from this qualification run.' }
         Invoke-CheckedNative (Get-DayQuayPackagingPython) @(
-            (Join-Path $PSScriptRoot 'verify_record.py'),'--record',$recordFile,'--package',$state.package,'--source-commit',$env:GITHUB_SHA)
+            (Join-Path $PSScriptRoot 'verify_record.py'),'--record',$recordFile,'--package',$state.package,'--source-commit',$env:GITHUB_SHA,'--identity-mode',$IdentityMode)
         $state.expectedTitle = [string]$state.record.windowTitleContract.expectedTitle
-        if ($state.record.schemaVersion -ne 1 -or -not $state.record.qualificationIdentityOnly -or $state.record.signed -or $state.record.publicRelease -or $state.record.licenseClearanceClaimed -or $state.record.installationQualificationPassed) {
-            throw 'Package record is not an unsigned qualification-only record.'
-        }
-        foreach ($field in $expectedIdentity.Keys) {
-            if ([string]$state.record.identity.$field -cne [string]$expectedIdentity[$field]) { throw "Qualification identity mismatch: $field" }
-        }
+        Assert-DayQuayIdentityRecord $state.record $IdentityMode
         $state.unsignedPackageSha256 = (Get-FileHash -LiteralPath $state.package -Algorithm SHA256).Hash.ToLowerInvariant()
         if ($state.unsignedPackageSha256 -ne ([string]$state.record.containerVerification.package.sha256).ToLowerInvariant()) { throw 'Unsigned package hash differs from verified package record.' }
         $sdkVersion = [regex]::Escape([string]$state.record.makeAppx.sdkVersion)
@@ -681,11 +702,11 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
             sdk_version = [string]$state.record.makeAppx.sdkVersion
         }
         foreach ($profile in @((Join-Path $env:APPDATA 'DayQuay'), (Join-Path $env:USERPROFILE '.rednotebook'))) {
-            if (Test-Path -LiteralPath $profile) { throw 'Existing DayQuay/legacy user profile must be preserved; disposable-run qualification refused.' }
+            if (Test-Path -LiteralPath $profile) { throw 'Existing Jotmorrow/legacy user profile must be preserved; disposable-run qualification refused.' }
         }
         $existing = @(Get-AppxPackage -Name $expectedIdentity.packageName -ErrorAction Stop)
         $state.preflightPackageFullNames = @($existing | ForEach-Object { [string]$_.PackageFullName })
-        if ($existing.Count -gt 0) { throw 'A matching DayQuay qualification package is already installed; refusing to replace or remove it.' }
+        if ($existing.Count -gt 0) { throw 'A matching Jotmorrow qualification package is already installed; refusing to replace or remove it.' }
     }.GetNewClosure()
 
     $operations.PrepareSignedCopy = {
@@ -694,12 +715,12 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         New-Item -ItemType Directory -Path $temporaryCandidate -ErrorAction Stop | Out-Null
         # Cleanup ownership starts only after exclusive creation succeeds.
         $state.temporary = $temporaryCandidate
-        $state.signedCopy = Join-Path $state.temporary 'DayQuay.Qualification.signed.msix'
+        $state.signedCopy = Join-Path $state.temporary 'Jotmorrow.Qualification.signed.msix'
         [IO.File]::Copy($state.package, $state.signedCopy, $false)
-        $state.publicCertificate = Join-Path $state.temporary 'DayQuay.Qualification.public.cer'
+        $state.publicCertificate = Join-Path $state.temporary 'Jotmorrow.Qualification.public.cer'
         $state.certificate = New-SelfSignedCertificate -Type Custom -KeyUsage DigitalSignature -KeyExportPolicy NonExportable -KeySpec Signature `
             -CertStoreLocation 'Cert:\CurrentUser\My' -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3','2.5.29.19={text}') `
-            -Subject $expectedIdentity.publisher -FriendlyName 'DayQuay ephemeral CI qualification' -NotAfter (Get-Date).AddHours(12)
+            -Subject $expectedIdentity.publisher -FriendlyName 'Jotmorrow ephemeral CI qualification' -NotAfter (Get-Date).AddHours(12)
         Export-Certificate -Cert $state.certificate -FilePath $state.publicCertificate -Force | Out-Null
         $state.trustAttempted = $true
         $state.trustedCertificate = Import-Certificate -FilePath $state.publicCertificate -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople'
@@ -729,9 +750,9 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         $state.workflowProfile = New-DayQuayWorkflowProfile `
             -ProfileRoot (Join-Path $env:APPDATA 'DayQuay') `
             -OwnershipToken ([guid]::NewGuid().ToString('N'))
-        $state.workflowArchive = Join-Path $state.temporary 'DayQuay-consumer-backup.zip'
-        $state.workflowSentinel = 'DAYQUAY-INSTALLED-WORKFLOW-' + [guid]::NewGuid().ToString('N').ToUpperInvariant()
-        $state.workflowReopenMarker = 'DAYQUAY-REOPENED-WORKFLOW-' + [guid]::NewGuid().ToString('N').ToUpperInvariant()
+        $state.workflowArchive = Join-Path $state.temporary 'Jotmorrow-consumer-backup.zip'
+        $state.workflowSentinel = 'JOTMORROW-INSTALLED-WORKFLOW-' + [guid]::NewGuid().ToString('N').ToUpperInvariant()
+        $state.workflowReopenMarker = 'JOTMORROW-REOPENED-WORKFLOW-' + [guid]::NewGuid().ToString('N').ToUpperInvariant()
     }.GetNewClosure()
 
     $operations.Install = {
@@ -759,7 +780,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
             $relative = $entry.Name
             $expected = Get-RecordPayloadEntry $state.record $relative
             $hash = Assert-FileMatchesRecord (Join-Path $state.installed.InstallLocation ($relative -replace '/', [IO.Path]::DirectorySeparatorChar)) $expected $relative
-            if ($relative -eq 'DayQuay.exe') { $state.executableSha256 = $hash }
+            if ($relative -eq 'Jotmorrow.exe') { $state.executableSha256 = $hash }
 
         }
     }.GetNewClosure()
@@ -767,32 +788,32 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
     $operations.ActivateAndVerify = {
         Invoke-CheckedNative (Get-DayQuayPackagingPython) @(
             (Join-Path $PSScriptRoot 'verify_record.py'),'--record',$RecordPath,'--package',$state.package,
-            '--source-commit',$env:GITHUB_SHA,'--installed-root',$state.installed.InstallLocation)
+            '--source-commit',$env:GITHUB_SHA,'--identity-mode',$IdentityMode,'--installed-root',$state.installed.InstallLocation)
         Add-DayQuayActivationTypes
         $processId = [DayQuayQualification.ActivationBroker]::Activate($state.aumid)
         $state.brokerProcessId = [int]$processId
         $state.process = [Diagnostics.Process]::GetProcessById([int]$processId)
         $state.processHandle = $state.process.SafeHandle
         if ($state.processHandle.IsInvalid -or $state.processHandle.IsClosed) { throw 'Cannot retain the live broker-activated process handle.' }
-        $expectedExecutable = Get-CanonicalPath (Join-Path $state.installed.InstallLocation 'DayQuay.exe')
+        $expectedExecutable = Get-CanonicalPath (Join-Path $state.installed.InstallLocation 'Jotmorrow.exe')
         if ((Get-CanonicalPath $state.process.MainModule.FileName) -ine $expectedExecutable) { throw 'Broker returned an executable outside the owned installed path.' }
         $state.processPackageFullName = [DayQuayQualification.NativePackageProbe]::GetFullName($state.process.Handle)
         if ($state.processPackageFullName -cne $state.ownedPackageFullName) { throw 'Broker process does not have the exact owned package identity.' }
-        Assert-FileMatchesRecord $expectedExecutable (Get-RecordPayloadEntry $state.record 'DayQuay.exe') 'Activated executable' | Out-Null
+        Assert-FileMatchesRecord $expectedExecutable (Get-RecordPayloadEntry $state.record 'Jotmorrow.exe') 'Activated executable' | Out-Null
         $state.processOwned = $true
         $deadline = [DateTime]::UtcNow.AddSeconds(30)
         do {
             Start-Sleep -Milliseconds 250
             $state.process.Refresh()
-            if ($state.process.HasExited) { throw "Activated DayQuay exited during startup: $($state.process.ExitCode)" }
+            if ($state.process.HasExited) { throw "Activated Jotmorrow exited during startup: $($state.process.ExitCode)" }
         } until (($state.process.MainWindowHandle -ne 0 -and (Test-DayQuayWindowTitle $state.process.MainWindowTitle $state.expectedTitle)) -or [DateTime]::UtcNow -ge $deadline)
-        if ($state.process.MainWindowHandle -eq 0) { throw 'Activated DayQuay did not create a main window.' }
+        if ($state.process.MainWindowHandle -eq 0) { throw 'Activated Jotmorrow did not create a main window.' }
         if (-not (Test-DayQuayWindowTitle $state.process.MainWindowTitle $state.expectedTitle)) { throw "Unexpected activated main-window title: $($state.process.MainWindowTitle)" }
         $state.processPackageFullName = [DayQuayQualification.NativePackageProbe]::GetFullName($state.process.Handle)
         if ($state.processPackageFullName -cne [string]$state.installed.PackageFullName) { throw 'Activated process does not own the exact installed package full name.' }
         Start-Sleep -Seconds 3
         $state.process.Refresh()
-        if ($state.process.HasExited -or $state.process.MainWindowHandle -eq 0 -or -not (Test-DayQuayWindowTitle $state.process.MainWindowTitle $state.expectedTitle)) { throw 'Activated DayQuay did not survive the stable-window interval.' }
+        if ($state.process.HasExited -or $state.process.MainWindowHandle -eq 0 -or -not (Test-DayQuayWindowTitle $state.process.MainWindowTitle $state.expectedTitle)) { throw 'Activated Jotmorrow did not survive the stable-window interval.' }
         $installRoot = Get-CanonicalPath $state.installed.InstallLocation
         $windowsRoot = Get-CanonicalPath $env:SystemRoot
         $modules = [Collections.Generic.List[object]]::new()
@@ -855,13 +876,13 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         }
         $state.workflowTested = $true
         $state.process.Refresh()
-        if ($state.process.HasExited -or $state.process.MainWindowHandle -eq 0) { throw 'Activated DayQuay did not survive the stable-window interval.' }
+        if ($state.process.HasExited -or $state.process.MainWindowHandle -eq 0) { throw 'Activated Jotmorrow did not survive the stable-window interval.' }
     }.GetNewClosure()
 
     $operations.CloseCleanly = {
-        if (-not $state.process.CloseMainWindow()) { throw 'Activated DayQuay refused a normal main-window close request.' }
+        if (-not $state.process.CloseMainWindow()) { throw 'Activated Jotmorrow refused a normal main-window close request.' }
         $state.processExit = Get-DayQuayProcessExitEvidence $state.process 15000
-        if (-not $state.processExit.normal_exit) { throw ('Activated DayQuay normal-close observation failed: ' + ($state.processExit | ConvertTo-Json -Compress)) }
+        if (-not $state.processExit.normal_exit) { throw ('Activated Jotmorrow normal-close observation failed: ' + ($state.processExit | ConvertTo-Json -Compress)) }
         $state.cleanClose = $true
         $state.processShutdownVerified = $true
     }.GetNewClosure()
@@ -968,8 +989,11 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
     $evidence = [ordered]@{
         schema_version = 1
         generated_at_utc = [DateTime]::UtcNow.ToString('o')
+        workflow_run_id = $env:GITHUB_RUN_ID
+        workflow_run_attempt = $env:GITHUB_RUN_ATTEMPT
         source_commit = if ($state.record) { [string]$state.record.sourceCommit } else { $null }
-        qualification_identity_only = $true
+        qualification_identity_only = ($IdentityMode -eq 'qualification')
+        identity_mode = $IdentityMode
         identity = $expectedIdentity
         aumid = $state.aumid
         package_full_name = if ($state.installed) { [string]$state.installed.PackageFullName } else { $null }
@@ -1002,7 +1026,7 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         native_source_clearance = $false
         upgrade_tested = $false
         wack_tested = $false
-        store_identity_used = $false
+        store_identity_used = ($IdentityMode -eq 'store')
         public_release = $false
         primary_error = $result.primary_error
         cleanup_errors = @($result.cleanup_errors)
@@ -1014,14 +1038,14 @@ function Invoke-DayQuayInstallQualification([string]$PackagePath, [string]$Recor
         throw "Could not preserve qualification JSON: $($_.Exception.Message). Primary: $($result.primary_error); cleanup: $($result.cleanup_errors -join '; '); evidence: $($evidenceErrors -join '; ')"
     }
     if (-not $qualificationPassed) {
-        throw "DayQuay installation qualification failed. Primary: $($result.primary_error); cleanup: $($result.cleanup_errors -join '; '); evidence: $($evidenceErrors -join '; ')"
+        throw "Jotmorrow installation qualification failed. Primary: $($result.primary_error); cleanup: $($result.cleanup_errors -join '; '); evidence: $($evidenceErrors -join '; ')"
     }
     Write-Output 'PASS: broker-activated exact package, exercised installed journal/backup/restore, verified owned modules/window/close, uninstalled, and cleaned owned profile/certificate state.'
 }
 
 if (-not $LibraryOnly) {
     try {
-        Invoke-DayQuayInstallQualification -PackagePath $Package -RecordPath $PackageRecord -SignToolPath $SignTool -OutputPath $Output
+        Invoke-DayQuayInstallQualification -PackagePath $Package -RecordPath $PackageRecord -SignToolPath $SignTool -OutputPath $Output -IdentityMode $IdentityMode
     } catch {
         Write-Error $_
         exit 1

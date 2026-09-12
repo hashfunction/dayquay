@@ -16,12 +16,12 @@ import zipfile
 import installed_workflow_qualification as workflow
 
 
-SENTINEL = "DAYQUAY-INSTALLED-WORKFLOW-7F4C9A2E"
-REOPEN_MARKER = "DAYQUAY-REOPENED-WORKFLOW-1D8B6C3F"
-MONTH_BYTES = b"11:\n  text: DAYQUAY-INSTALLED-WORKFLOW-7F4C9A2E\n"
+SENTINEL = "JOTMORROW-INSTALLED-WORKFLOW-7F4C9A2E"
+REOPEN_MARKER = "JOTMORROW-REOPENED-WORKFLOW-1D8B6C3F"
+MONTH_BYTES = b"11:\n  text: JOTMORROW-INSTALLED-WORKFLOW-7F4C9A2E\n"
 REOPENED_BYTES = (
-    b"11:\n  text: DAYQUAY-INSTALLED-WORKFLOW-7F4C9A2E\\n"
-    b"DAYQUAY-REOPENED-WORKFLOW-1D8B6C3F\n"
+    b"11:\n  text: JOTMORROW-INSTALLED-WORKFLOW-7F4C9A2E\\n"
+    b"JOTMORROW-REOPENED-WORKFLOW-1D8B6C3F\n"
 )
 
 
@@ -85,7 +85,7 @@ class InstalledWorkflowTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory(prefix="dayquay-installed-workflow-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        self.profile = self.root / "DayQuay"
+        self.profile = self.root / "Jotmorrow"
         self.journal = self.profile / "data"
         self.journal.mkdir(parents=True)
         self.archive = self.root / "consumer-backup.zip"
@@ -102,7 +102,7 @@ class InstalledWorkflowTests(unittest.TestCase):
             "restore_name": self.restored.name,
             "sentinel": SENTINEL,
             "reopen_marker": REOPEN_MARKER,
-            "initial_title": "DayQuay - Friday, 9/11/2026",
+            "initial_title": "Jotmorrow - Friday, 9/11/2026",
         }
         if not immediate:
             return workflow.run_consumer_workflow(**arguments)
@@ -143,13 +143,13 @@ class InstalledWorkflowTests(unittest.TestCase):
         self.assertEqual(
             evidence["reopen_transition"],
             {
-                "away_title": "DayQuay - ReopenProbe - Friday, 9/11/2026",
-                "return_title": "DayQuay - Friday, 9/11/2026",
+                "away_title": "Jotmorrow - ReopenProbe - Friday, 9/11/2026",
+                "return_title": "Jotmorrow - Friday, 9/11/2026",
             },
         )
         self.assertEqual(
             evidence["restored_window_title"],
-            "DayQuay - RestoredQualification - Friday, 9/11/2026",
+            "Jotmorrow - RestoredQualification - Friday, 9/11/2026",
         )
 
     def test_noop_reopen_cannot_qualify(self):
@@ -179,7 +179,7 @@ class InstalledWorkflowTests(unittest.TestCase):
                     prefix="dayquay-source-mutation-"
                 ) as temporary:
                     root = Path(temporary)
-                    profile = root / "DayQuay"
+                    profile = root / "Jotmorrow"
                     journal = profile / "data"
                     journal.mkdir(parents=True)
                     (profile / "ReopenProbe").mkdir()
@@ -207,7 +207,7 @@ class InstalledWorkflowTests(unittest.TestCase):
                             restore_name=restored.name,
                             sentinel=SENTINEL,
                             reopen_marker=REOPEN_MARKER,
-                            initial_title="DayQuay - Friday, 9/11/2026",
+                            initial_title="Jotmorrow - Friday, 9/11/2026",
                         )
 
     def test_restore_changing_backup_archive_is_rejected(self):
@@ -249,11 +249,11 @@ class InstalledWorkflowTests(unittest.TestCase):
     def test_restored_title_rejects_non_default_initial_contract(self):
         self.assertEqual(
             workflow.restored_window_title(
-                "DayQuay - Friday, 9/11/2026", "RestoredQualification"
+                "Jotmorrow - Friday, 9/11/2026", "RestoredQualification"
             ),
-            "DayQuay - RestoredQualification - Friday, 9/11/2026",
+            "Jotmorrow - RestoredQualification - Friday, 9/11/2026",
         )
-        for title in ("DayQuay", "Other - Friday, 9/11/2026", "DayQuay - named - date"):
+        for title in ("Jotmorrow", "Other - Friday, 9/11/2026", "Jotmorrow - named - date"):
             with self.subTest(title=title):
                 with self.assertRaisesRegex(ValueError, "default journal title"):
                     workflow.restored_window_title(title, "RestoredQualification")
@@ -287,7 +287,7 @@ class InstalledWorkflowTests(unittest.TestCase):
 
     def test_reopen_targets_exact_native_directory_chooser(self):
         native = object.__new__(workflow._WindowsInput)
-        native.current_title = "DayQuay - Friday, 9/11/2026"
+        native.current_title = "Jotmorrow - Friday, 9/11/2026"
         native.main_hwnd = 101
         native._main = mock.Mock()
         native.chord = mock.Mock()
@@ -300,8 +300,8 @@ class InstalledWorkflowTests(unittest.TestCase):
         evidence = native.reopen_journal(
             original,
             transition,
-            "DayQuay - ReopenProbe - Friday, 9/11/2026",
-            "DayQuay - Friday, 9/11/2026",
+            "Jotmorrow - ReopenProbe - Friday, 9/11/2026",
+            "Jotmorrow - Friday, 9/11/2026",
         )
 
         self.assertEqual(
@@ -314,8 +314,8 @@ class InstalledWorkflowTests(unittest.TestCase):
         self.assertEqual(
             evidence,
             {
-                "away_title": "DayQuay - ReopenProbe - Friday, 9/11/2026",
-                "return_title": "DayQuay - Friday, 9/11/2026",
+                "away_title": "Jotmorrow - ReopenProbe - Friday, 9/11/2026",
+                "return_title": "Jotmorrow - Friday, 9/11/2026",
             },
         )
 
@@ -358,11 +358,11 @@ class InstalledWorkflowTests(unittest.TestCase):
 
     def test_chooser_input_uses_windows_separators_with_real_action_order(self):
         for supplied, expected in (
-            ("D:/a/_temp/DayQuay/ReopenProbe", r"D:\a\_temp\DayQuay\ReopenProbe"),
-            (r"C:\Users/runneradmin/DayQuay/data", r"C:\Users\runneradmin\DayQuay\data"),
+            ("D:/a/_temp/Jotmorrow/ReopenProbe", r"D:\a\_temp\Jotmorrow\ReopenProbe"),
+            (r"C:\Users/runneradmin/Jotmorrow/data", r"C:\Users\runneradmin\Jotmorrow\data"),
             ("C:/Journals/Café, notes/backup.zip", "C:\\Journals\\Café, notes\\backup.zip"),
-            ("//server/share/DayQuay/data", r"\\server\share\DayQuay\data"),
-            (r"C:\DayQuay\data", r"C:\DayQuay\data"),
+            ("//server/share/Jotmorrow/data", r"\\server\share\Jotmorrow\data"),
+            (r"C:\Jotmorrow\data", r"C:\Jotmorrow\data"),
         ):
             with self.subTest(supplied=supplied):
                 native = object.__new__(workflow._WindowsInput)
@@ -390,7 +390,7 @@ class InstalledWorkflowTests(unittest.TestCase):
     def test_save_chooser_replaces_extension_as_well_as_prefilled_name(self):
         # GTK's SAVE focus handler selects only the stem of this default name.
         # Preserve that real boundary behavior instead of starting with an empty entry.
-        entry = {"text": "DayQuay-Backup-2026-09-12.zip", "selection": (0, 25)}
+        entry = {"text": "Jotmorrow-Backup-2026-09-12.zip", "selection": (0, 25)}
         native = object.__new__(workflow._WindowsInput)
         native._wait_window = mock.Mock(side_effect=[17, None])
         native._foreground = mock.Mock()
@@ -405,8 +405,8 @@ class InstalledWorkflowTests(unittest.TestCase):
             entry["text"] = entry["text"][:start] + value + entry["text"][end:]
         native.chord, native.text = chord, text
         with mock.patch.object(workflow.time, "sleep"):
-            native._select_path("Select backup filename", "D:/owned/DayQuay-consumer-backup.zip", "S")
-        self.assertEqual(entry["text"], r"D:\owned\DayQuay-consumer-backup.zip")
+            native._select_path("Select backup filename", "D:/owned/Jotmorrow-consumer-backup.zip", "S")
+        self.assertEqual(entry["text"], r"D:\owned\Jotmorrow-consumer-backup.zip")
 
     def test_select_all_ownership_refusal_prevents_filename_input(self):
         native = object.__new__(workflow._WindowsInput)
@@ -427,7 +427,7 @@ class InstalledWorkflowTests(unittest.TestCase):
         native._foreground = mock.Mock(side_effect=ValueError("ownership changed"))
         native.chord, native.text, native.press = mock.Mock(), mock.Mock(), mock.Mock()
         with self.assertRaisesRegex(ValueError, "ownership"):
-            native._select_path("Select a directory", "C:/DayQuay/data", "O")
+            native._select_path("Select a directory", "C:/Jotmorrow/data", "O")
         native.chord.assert_not_called()
         native.text.assert_not_called()
         native.press.assert_not_called()
@@ -482,7 +482,7 @@ class InstalledWorkflowTests(unittest.TestCase):
         }
         arguments = [
             "workflow", "--process-id", "7", "--main-window-handle", "17",
-            "--initial-title", "DayQuay - Friday, 9/11/2026",
+            "--initial-title", "Jotmorrow - Friday, 9/11/2026",
             "--profile-root", str(self.profile), "--archive", str(self.archive),
             "--restore-name", "RestoredQualification", "--sentinel", SENTINEL,
             "--reopen-marker", REOPEN_MARKER, "--output", str(output),

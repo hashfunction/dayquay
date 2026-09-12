@@ -7,7 +7,7 @@ Set-StrictMode -Version Latest
 $probe=Join-Path ([IO.Path]::GetTempPath()) ('dayquay-workflow-profile-'+[guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $probe | Out-Null
 try {
-    $profile=Join-Path $probe 'DayQuay'
+    $profile=Join-Path $probe 'Jotmorrow'
     $owned=New-DayQuayWorkflowProfile $profile ([guid]::NewGuid().ToString('N'))
     if (-not (Test-Path -LiteralPath (Join-Path $profile 'data') -PathType Container) -or
         -not (Test-Path -LiteralPath (Join-Path $profile 'ReopenProbe') -PathType Container) -or
@@ -108,7 +108,7 @@ function Invoke-DayQuayQualificationCore([Collections.IDictionary]$Operations) {
     [IO.File]::WriteAllText($state.package,'unsigned fixture')
     $state.unsignedPackageSha256=(Get-FileHash $state.package -Algorithm SHA256).Hash.ToLowerInvariant()
     $state.workflowProfile=New-DayQuayWorkflowProfile `
-        (Join-Path $state.output 'DayQuay') ([guid]::NewGuid().ToString('N'))
+        (Join-Path $state.output 'Jotmorrow') ([guid]::NewGuid().ToString('N'))
     $state.brokerProcessId=4242
     $state.processOwned=$script:CleanupScenario.process_owned
     $state.processShutdownVerified=$script:CleanupScenario.shutdown_verified

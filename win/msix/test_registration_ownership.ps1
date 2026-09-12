@@ -8,7 +8,7 @@ $script:ActualCore = ${function:Invoke-DayQuayQualificationCore}
 $global:RegistrationFixture = $null
 function global:Get-AppxPackage {
     [CmdletBinding()] param([string]$Name)
-    if ($Name -cne 'Trieflow.DayQuay.Qualification') { throw 'Unscoped package query' }
+    if ($Name -cne 'Trieflow.Jotmorrow.Qualification') { throw 'Unscoped package query' }
     $fixture = $global:RegistrationFixture
     if ($fixture.observationFailure) { $fixture.observationFailure=$false; throw 'registration observation failed' }
     return @($fixture.registrations)
@@ -50,7 +50,7 @@ function Invoke-DayQuayQualificationCore([Collections.IDictionary]$Operations) {
     $state.processShutdownVerified=$true
     # Native preflight is unavailable locally. Capture the empty preflight view;
     # actual Add/Get/Remove production closures run through the controlled adapter.
-    $Operations.Preflight={ if (@(Get-AppxPackage -Name 'Trieflow.DayQuay.Qualification').Count) { throw 'Fixture must start empty' } }
+    $Operations.Preflight={ if (@(Get-AppxPackage -Name 'Trieflow.Jotmorrow.Qualification').Count) { throw 'Fixture must start empty' } }
     foreach ($name in @('PrepareSignedCopy','PrepareWorkflowFixture','VerifyInstalledMedia','CaptureInstalledStderr','ActivateAndVerify','UninstallAndVerify','StopOwnedProcess','RemoveTrustedCertificate','RemovePersonalCertificate','RemoveWorkflowFixture','RemoveTemporaryFiles')) {
         if ($name -eq 'UninstallAndVerify' -and $fixture.scenario -in @('normal-owned','normal-with-foreign')) { continue }
         $Operations[$name]={}
@@ -64,8 +64,8 @@ foreach ($scenario in @('observation-empty','failed-add-race','ambiguous-add','w
     $temporary=Join-Path ([IO.Path]::GetTempPath()) ('dayquay-registration-test-'+[guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory $temporary | Out-Null
     try {
-        $owned=[pscustomobject]@{Name='Trieflow.DayQuay.Qualification';Publisher='CN=DayQuay-CI-Qualification';Version='1.0.0.0';Architecture='X64';PackageFullName='Trieflow.DayQuay.Qualification_1.0.0.0_x64__fixture';PackageFamilyName='Trieflow.DayQuay.Qualification_fixture';InstallLocation=$temporary}
-        $foreign=[pscustomobject]@{Name=$owned.Name;Publisher=$owned.Publisher;Version=$owned.Version;Architecture='Arm64';PackageFullName='Trieflow.DayQuay.Qualification_1.0.0.0_arm64__fixture';PackageFamilyName=$owned.PackageFamilyName;InstallLocation=$temporary}
+        $owned=[pscustomobject]@{Name='Trieflow.Jotmorrow.Qualification';Publisher='CN=Jotmorrow-CI-Qualification';Version='1.0.1.0';Architecture='X64';PackageFullName='Trieflow.Jotmorrow.Qualification_1.0.1.0_x64__fixture';PackageFamilyName='Trieflow.Jotmorrow.Qualification_fixture';InstallLocation=$temporary}
+        $foreign=[pscustomobject]@{Name=$owned.Name;Publisher=$owned.Publisher;Version=$owned.Version;Architecture='Arm64';PackageFullName='Trieflow.Jotmorrow.Qualification_1.0.1.0_arm64__fixture';PackageFamilyName=$owned.PackageFamilyName;InstallLocation=$temporary}
         # The racing registration has the exact expected x64 full name; a name/
         # architecture match still cannot establish ownership after our Add failed.
         $raced=$owned.PSObject.Copy()

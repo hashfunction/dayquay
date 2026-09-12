@@ -12,8 +12,8 @@ import enchant
 import yaml
 
 buffer = GtkSource.Buffer()
-buffer.set_text("DayQuay runtime qualification")
-assert buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True) == "DayQuay runtime qualification"
+buffer.set_text("Jotmorrow runtime qualification")
+assert buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), True) == "Jotmorrow runtime qualification"
 dictionary = enchant.Dict("en_US")
 assert dictionary.check("journal")
 assert not dictionary.check("qzxwqzxw")

@@ -6,19 +6,19 @@
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
 AppId={{7AA55677-54D3-4A21-95E3-763A96694420}
-AppName=DayQuay
+AppName=Jotmorrow
 AppVersion={#REDNOTEBOOK_VERSION}
-AppVerName=DayQuay {#REDNOTEBOOK_VERSION}
+AppVerName=Jotmorrow {#REDNOTEBOOK_VERSION}
 AppPublisher=Trieflow
-AppPublisherURL=https://dayquay.trieflow.com
-AppSupportURL=https://dayquay.trieflow.com/support
-AppUpdatesURL=https://dayquay.trieflow.com
-DefaultDirName={autopf}\DayQuay
-DefaultGroupName=DayQuay
+AppPublisherURL=https://jotmorrow.trieflow.com
+AppSupportURL=https://jotmorrow.trieflow.com/support
+AppUpdatesURL=https://jotmorrow.trieflow.com
+DefaultDirName={autopf}\Jotmorrow
+DefaultGroupName=Jotmorrow
 AllowNoIcons=yes
 OutputDir=C:\
-OutputBaseFilename=DayQuay-Setup
-SetupIconFile=dayquay.ico
+OutputBaseFilename=Jotmorrow-{#REDNOTEBOOK_VERSION}-Setup
+SetupIconFile=jotmorrow.ico
 Compression=lzma2
 SolidCompression=yes
 ;DisableWelcomePage=yes
@@ -61,27 +61,27 @@ Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescrip
 ;Components: everything;
 
 ;Startup
-name: "startupicon"; Description: "Run DayQuay on Startup"; GroupDescription: "Additional tasks:"; MinVersion: 4,4; Flags: unchecked;
+name: "startupicon"; Description: "Run Jotmorrow on Startup"; GroupDescription: "Additional tasks:"; MinVersion: 4,4; Flags: unchecked;
 
 [Files]
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
-Source: "C:\\DayQuay\*"; Excludes: "*.log,*.a,*.def,*.h,*.lib,*.pc,Thumbs.db"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\\Jotmorrow\*"; Excludes: "*.log,*.a,*.def,*.h,*.lib,*.pc,Thumbs.db"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ;Source: "portable.cfg"; DestDir: "{app}\files"; DestName: "default.cfg"; Flags: ignoreversion; Components: portablecfgfile
 
 [Icons]
-Name: "{group}\DayQuay"; Filename: "{app}\DayQuay.exe";
+Name: "{group}\Jotmorrow"; Filename: "{app}\Jotmorrow.exe";
 ;Components: everything;
-Name: "{group}\{cm:UninstallProgram,DayQuay}"; Filename: "{uninstallexe}";
+Name: "{group}\{cm:UninstallProgram,Jotmorrow}"; Filename: "{uninstallexe}";
 ;Components: everything;
-Name: "{commondesktop}\DayQuay"; Filename: "{app}\DayQuay.exe"; Tasks: desktopicon
-Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\DayQuay"; Filename: "{app}\DayQuay.exe"; Tasks: quicklaunchicon
+Name: "{commondesktop}\Jotmorrow"; Filename: "{app}\Jotmorrow.exe"; Tasks: desktopicon
+Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\Jotmorrow"; Filename: "{app}\Jotmorrow.exe"; Tasks: quicklaunchicon
 
 ;Startup
-Name: "{userstartup}\DayQuay"; Filename: "{app}\DayQuay.exe"; Tasks: startupicon; workingdir: "{app}"
+Name: "{userstartup}\Jotmorrow"; Filename: "{app}\Jotmorrow.exe"; Tasks: startupicon; workingdir: "{app}"
 
 
 [Run]
-Filename: "{app}\DayQuay.exe"; Description: "{cm:LaunchProgram,DayQuay}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Jotmorrow.exe"; Description: "{cm:LaunchProgram,Jotmorrow}"; Flags: nowait postinstall skipifsilent
 
 
 [Code]

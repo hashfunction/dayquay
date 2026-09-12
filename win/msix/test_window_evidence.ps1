@@ -2,7 +2,7 @@
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
 . (Join-Path $PSScriptRoot 'qualify-msix-install.ps1') -LibraryOnly
-$title='DayQuay - Friday, 9/11/2026' # Actual retained Windows receipt; synthetic UI observations below.
+$title='Jotmorrow - Friday, 9/11/2026' # Actual retained Windows receipt; synthetic UI observations below.
 $good=[ordered]@{ title=$title; expected_title=$title; process_id=123; visible=$true; width=800; height=600;
     screenshot_captured=$true; screenshot_sha256=('a'*64); sampled_colors=50;
     startup_limited=$true; actionable_controls_verified=$false;
@@ -14,7 +14,7 @@ Assert-DayQuayWindowEvidence $good $title
 foreach ($case in @('title','hidden','no-screenshot','blank-screenshot','small-window','unbounded-window','false-workflow','missing-limit','modal')) {
     $probe=$good | ConvertTo-Json -Depth 8 | ConvertFrom-Json -AsHashtable
     switch ($case) {
-        title {$probe.title='DayQuay fatal error'}
+        title {$probe.title='Jotmorrow fatal error'}
         hidden {$probe.visible=$false}
         no-screenshot {$probe.screenshot_captured=$false}
         blank-screenshot {$probe.sampled_colors=1}
@@ -30,10 +30,10 @@ foreach ($case in @('title','hidden','no-screenshot','blank-screenshot','small-w
 }
 Write-Output 'PASS GTK window-observation policy: explicit limited fixture and nine negative variants'
 
-foreach ($wrong in @('DayQuay','DayQuay - loading','DayQuay error',($title+' '),($title+' - error'),('prefix '+$title),'DayQuay - Saturday, 9/12/2026','')) {
+foreach ($wrong in @('Jotmorrow','Jotmorrow - loading','Jotmorrow error',($title+' '),($title+' - error'),('prefix '+$title),'Jotmorrow - Saturday, 9/12/2026','')) {
     if (Test-DayQuayWindowTitle $wrong $title) { throw "Strict source-derived title accepted unrelated/transient title: $wrong" }
 }
-if (Test-DayQuayWindowTitle 'DayQuay' '') { throw 'Missing expected title accepted' }
+if (Test-DayQuayWindowTitle 'Jotmorrow' '') { throw 'Missing expected title accepted' }
 Write-Output 'PASS exact stable date-title contract and eight transient/error/prefix/date variants'
 
 # Exercise the actual fit/reobserve operation with finite desktop observations.
@@ -140,7 +140,7 @@ $consumerTry=@($installAst.FindAll({param($node)
 if ($consumerTry.Count -ne 1) {throw 'Cannot locate the exact consumer diagnostic catch'}
 foreach($diagnosticFailure in @($false,$true)) {
     & {
-        $state=@{process=(Get-Process -Id $PID);expectedTitle='DayQuay';workflowProfile=@{root='fixture-profile'};
+        $state=@{process=(Get-Process -Id $PID);expectedTitle='Jotmorrow';workflowProfile=@{root='fixture-profile'};
             workflowArchive='fixture.zip';workflowRestoreName='Restored';workflowSentinel='sentinel';workflowReopenMarker='reopen';
             output='fixture-output';workflowDiagnosticError=$null}
         $workflowEvidencePath='fixture-output/installed-consumer-workflow.json';$diagnosticCalls=@{count=0}

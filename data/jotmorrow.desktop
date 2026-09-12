@@ -1,10 +1,10 @@
 [Desktop Entry]
 Version=1.0
-Name=DayQuay
+Name=Jotmorrow
 GenericName=Journal
 Comment=Local daily journal with verified portable backups
-Exec=dayquay
-Icon=dayquay
+Exec=jotmorrow
+Icon=jotmorrow
 Terminal=false
 Type=Application
 Categories=Office;

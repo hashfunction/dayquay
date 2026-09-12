@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""Reproducible one-directory DayQuay build from an MSYS2 UCRT64 prefix."""
+"""Reproducible one-directory Jotmorrow build from an MSYS2 UCRT64 prefix."""
 
 import os
 import sys
@@ -9,7 +9,7 @@ from pathlib import Path
 win_dir = Path(SPECPATH).resolve()
 repo = win_dir.parent
 srcdir = repo / "rednotebook"
-icon = win_dir / "dayquay.ico"
+icon = win_dir / "jotmorrow.ico"
 prefix_value = os.environ.get("MINGW_PREFIX")
 if not prefix_value:
     raise RuntimeError("MINGW_PREFIX must identify the qualified MSYS2 UCRT64 environment")
@@ -23,7 +23,7 @@ enchant = resolve_enchant_inputs(prefix)
 required = (repo, srcdir, icon, win_dir / "dayquay-runtime-hook.py")
 missing = [str(path) for path in required if not path.exists()]
 if missing:
-    raise RuntimeError("Missing DayQuay build inputs: " + ", ".join(missing))
+    raise RuntimeError("Missing Jotmorrow build inputs: " + ", ".join(missing))
 
 datas = [(str(path), destination) for path, destination in enchant.datas]
 datas.extend(
@@ -71,7 +71,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="DayQuay",
+    name="Jotmorrow",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -86,5 +86,5 @@ coll = COLLECT(
     a.datas,
     strip=False,
     upx=False,
-    name="DayQuay",
+    name="Jotmorrow",
 )

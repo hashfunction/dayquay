@@ -50,7 +50,7 @@ def create_probe_tree():
     root = Path(tempfile.mkdtemp(prefix="dayquay-chooser-probe-"))
     token = uuid.uuid4().hex
     (root / MARKER).write_text(token, encoding="ascii")
-    (root / "DayQuay" / "ReopenProbe").mkdir(parents=True)
+    (root / "Jotmorrow" / "ReopenProbe").mkdir(parents=True)
     return root, token
 
 
@@ -58,7 +58,7 @@ def remove_probe_tree(root, token):
     """Refuse substitutions or unexpected data before deleting any owned entry."""
     root = Path(root)
     marker = root / MARKER
-    parent = root / "DayQuay"
+    parent = root / "Jotmorrow"
     probe = parent / "ReopenProbe"
     for path in (root, marker, parent, probe):
         if _is_link_or_reparse(path):
@@ -69,14 +69,14 @@ def remove_probe_tree(root, token):
     # compare unequal to the same joined paths (native run 34670828389).
     # Compare exact child names from the directory, not lexical full paths.
     if (
-        set(os.listdir(root)) != {MARKER, "DayQuay"}
+        set(os.listdir(root)) != {MARKER, "Jotmorrow"}
         or set(os.listdir(parent)) != {"ReopenProbe"}
         or os.listdir(probe)
     ):
         details = {}
         try:
             for label, directory, expected in (
-                ("root", root, {MARKER, "DayQuay"}),
+                ("root", root, {MARKER, "Jotmorrow"}),
                 ("parent", parent, {"ReopenProbe"}),
                 ("probe", probe, set()),
             ):
@@ -113,20 +113,20 @@ def dispatch_action(native, hwnd, title, action, activate_default):
 def run_case(Gtk, Gdk, GLib, glade, parent_folder, action, path_style,
              chooser_id="dir_chooser", select_all=False):
     saving = chooser_id == "backup_dialog"
-    target_name = "DayQuay-consumer-backup.zip" if saving else "ReopenProbe"
+    target_name = "Jotmorrow-consumer-backup.zip" if saving else "ReopenProbe"
     target = chooser_target(parent_folder / target_name, path_style)
     builder = Gtk.Builder()
     builder.add_from_string(chooser_xml(glade, chooser_id))
     dialog = builder.get_object(chooser_id)
     button = builder.get_object("button1" if saving else "button17")
-    parent = Gtk.Window(title="DayQuay standalone chooser diagnostic")
+    parent = Gtk.Window(title="Jotmorrow standalone chooser diagnostic")
     parent.set_default_size(992, 696)
     parent.show_all()
     dialog.set_transient_for(parent)
     dialog.set_current_folder(str(parent_folder))
     if saving:
         # Match Backup._get_backup_file for the default "data" journal.
-        dialog.set_current_name(f"DayQuay-Backup-{datetime.date.today()}.zip")
+        dialog.set_current_name(f"Jotmorrow-Backup-{datetime.date.today()}.zip")
         dialog.set_do_overwrite_confirmation(False)
         archive_filter = Gtk.FileFilter()
         archive_filter.set_name("Zip")
@@ -322,14 +322,14 @@ def main():
         for path_style in PATH_STYLES:
             for action in ACTIONS:
                 receipt["cases"].append(run_case(
-                    Gtk, Gdk, GLib, args.glade, root / "DayQuay", action, path_style,
+                    Gtk, Gdk, GLib, args.glade, root / "Jotmorrow", action, path_style,
                 ))
         # Compare the original SAVE sequence with full selection, using the
         # actual backup Glade and retained-process native input. No files are
         # created by this standalone chooser and it cannot qualify the app.
         for select_all in (False, True):
             receipt["cases"].append(run_case(
-                Gtk, Gdk, GLib, args.glade, root / "DayQuay", "enter", "native",
+                Gtk, Gdk, GLib, args.glade, root / "Jotmorrow", "enter", "native",
                 chooser_id="backup_dialog", select_all=select_all,
             ))
     except Exception as exc:

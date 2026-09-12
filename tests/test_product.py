@@ -196,7 +196,7 @@ def test_legacy_import_preserves_settings_created_while_staging(tmp_path, monkey
 
     monkeypatch.setattr(product, "_copy_import_file", create_competing_settings)
 
-    with pytest.raises(product.LegacyImportError, match="existing DayQuay settings"):
+    with pytest.raises(product.LegacyImportError, match="existing Jotmorrow settings"):
         product.import_legacy_profile(legacy, destination)
 
     assert (destination / "rednotebook-import.cfg").read_text(encoding="utf-8") == (
@@ -220,7 +220,7 @@ def test_legacy_import_preserves_data_created_while_staging(tmp_path, monkeypatc
 
     monkeypatch.setattr(product, "_copy_import_file", create_competing_data)
 
-    with pytest.raises(product.LegacyImportError, match="existing DayQuay data"):
+    with pytest.raises(product.LegacyImportError, match="existing Jotmorrow data"):
         product.import_legacy_profile(legacy, destination)
 
     assert (destination / "data" / "2026-09.txt").read_text(encoding="utf-8") == (
@@ -245,7 +245,7 @@ def test_partial_legacy_import_preserves_competing_templates(tmp_path, monkeypat
 
     monkeypatch.setattr(product, "_copy_import_file", create_competing_template)
 
-    with pytest.raises(product.LegacyImportError, match="existing DayQuay templates"):
+    with pytest.raises(product.LegacyImportError, match="existing Jotmorrow templates"):
         product.import_legacy_profile(legacy, destination)
 
     assert (destination / "templates" / "Weekly.txt").read_text(encoding="utf-8") == (

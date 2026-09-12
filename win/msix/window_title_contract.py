@@ -84,7 +84,7 @@ def source_title(source, day):
         "set_frame_title",
     )
     if (
-        name != "DayQuay"
+        name != "Jotmorrow"
         or defaults.get("exportDateFormat") != "%A, %x"
         or ast.dump(method) != ast.dump(REVIEWED_METHOD)
     ):

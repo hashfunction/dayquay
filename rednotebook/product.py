@@ -1,4 +1,4 @@
-"""DayQuay product boundaries that do not depend on GTK."""
+"""Jotmorrow product boundaries that do not depend on GTK."""
 
 import os
 import shutil
@@ -10,7 +10,8 @@ from pathlib import Path
 from rednotebook import atomic
 
 
-PRODUCT_NAME = "DayQuay"
+PRODUCT_NAME = "Jotmorrow"
+PROFILE_DIRECTORY_NAME = "DayQuay"  # Existing user-data location; independent of display branding.
 LEGACY_PROFILE_NAME = ".rednotebook"
 LEGACY_SETTINGS_IMPORT_NAME = "rednotebook-import.cfg"
 _IMPORTABLE_PROFILE_PATHS = ("configuration.cfg", "data", "templates")
@@ -38,13 +39,13 @@ def default_user_dir(
     if platform_name.startswith("win"):
         roaming = environment.get("APPDATA")
         if roaming:
-            return Path(roaming) / PRODUCT_NAME
-        return home_dir / "AppData" / "Roaming" / PRODUCT_NAME
+            return Path(roaming) / PROFILE_DIRECTORY_NAME
+        return home_dir / "AppData" / "Roaming" / PROFILE_DIRECTORY_NAME
     return home_dir / ".dayquay"
 
 
 def configure_bundled_enchant(base_dir, *, frozen=None, environment=None):
-    """Configure the relocatable Enchant prefix shipped in frozen DayQuay."""
+    """Configure the relocatable Enchant prefix shipped in frozen Jotmorrow."""
     if frozen is None:
         frozen = hasattr(sys, "frozen")
     if not frozen:
@@ -81,7 +82,7 @@ def configure_bundled_enchant(base_dir, *, frozen=None, environment=None):
         return resolved
     environment.pop("PYENCHANT_LIBRARY_PATH", None)
     raise ProductConfigurationError(
-        "Frozen DayQuay runtime requires bin/libenchant-2-2.dll, its "
+        "Frozen Jotmorrow runtime requires bin/libenchant-2-2.dll, its "
         f"lib/enchant-2 provider and share/hunspell en_US data under {base_dir}; "
         f"missing: {', '.join(str(path) for path in missing)}"
     )
@@ -149,13 +150,13 @@ def _profile_files(legacy_dir):
 def _ensure_import_target_is_empty(destination):
     data_dir = destination / "data"
     if data_dir.exists() and (not data_dir.is_dir() or any(data_dir.iterdir())):
-        raise LegacyImportError("DayQuay already contains journal data")
+        raise LegacyImportError("Jotmorrow already contains journal data")
     templates_dir = destination / "templates"
     if templates_dir.exists() and (not templates_dir.is_dir() or any(templates_dir.iterdir())):
-        raise LegacyImportError("DayQuay already contains templates")
+        raise LegacyImportError("Jotmorrow already contains templates")
     settings_file = legacy_settings_path(destination)
     if settings_file.exists():
-        raise LegacyImportError("DayQuay already contains settings")
+        raise LegacyImportError("Jotmorrow already contains settings")
 
 
 def _copy_import_file(source, target, relative):
@@ -176,15 +177,15 @@ def _publish_import_directory(staged, destination, label):
         return False
     if destination.exists():
         if _is_link_or_reparse(destination) or not destination.is_dir():
-            raise LegacyImportError(f"Import stopped at existing DayQuay {label}")
+            raise LegacyImportError(f"Import stopped at existing Jotmorrow {label}")
         try:
             destination.rmdir()
         except OSError as exc:
-            raise LegacyImportError(f"Import stopped at existing DayQuay {label}") from exc
+            raise LegacyImportError(f"Import stopped at existing Jotmorrow {label}") from exc
     try:
         atomic.rename_directory_no_replace(staged, destination)
     except (FileExistsError, NotImplementedError, OSError) as exc:
-        raise LegacyImportError(f"Import stopped at existing DayQuay {label}") from exc
+        raise LegacyImportError(f"Import stopped at existing Jotmorrow {label}") from exc
     return True
 
 
@@ -194,9 +195,9 @@ def _publish_import_settings(staged, destination):
     try:
         os.link(staged, destination)
     except FileExistsError as exc:
-        raise LegacyImportError("Import stopped at existing DayQuay settings") from exc
+        raise LegacyImportError("Import stopped at existing Jotmorrow settings") from exc
     except OSError as exc:
-        raise LegacyImportError("DayQuay could not publish imported settings safely") from exc
+        raise LegacyImportError("Jotmorrow could not publish imported settings safely") from exc
     return True
 
 

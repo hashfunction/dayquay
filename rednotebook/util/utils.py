@@ -121,7 +121,7 @@ def _show_update_dialog(journal, current_version, new_version, startup):
     secondary_text = (
         _("If you like the program, please consider making a donation.")
         + " "
-        + _("Do you want to visit the DayQuay homepage?")
+        + _("Do you want to visit the Jotmorrow homepage?")
     )
     dialog.set_markup(primary_text)
     dialog.format_secondary_text(secondary_text)

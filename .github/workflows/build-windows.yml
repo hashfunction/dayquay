@@ -1,6 +1,15 @@
-name: DayQuay Windows qualification
+name: Jotmorrow Windows qualification
 on:
   workflow_dispatch:
+    inputs:
+      export_store_package:
+        description: Retain the unsigned Store package after all qualification gates pass
+        type: boolean
+        default: false
+      reviewed_public_source:
+        description: Exact independently reviewed public commit required for Store export
+        type: string
+        default: ''
   push:
     branches: [codex/dayquay]
 permissions:
@@ -65,12 +74,16 @@ jobs:
           python win/msix/test_native_notices.py -v
           python win/msix/test_installed_workflow.py -v
           python win/msix/test_gtk_chooser_diagnostic.py -v
+          python win/msix/test_store_identity.py -v
+          python win/msix/test_source_publication.py -v
+          python win/msix/test_store_workflow_evidence.py -v
+          python win/msix/test_export_store_package.py -v
       - name: Test qualification ownership and failure evidence
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
           $powerShell=(Get-Process -Id $PID).Path
-          foreach ($fixture in @('test_qualify_msix_install.ps1','test_msix_evidence.ps1','test_registration_ownership.ps1','test_process_observation.ps1','test_window_evidence.ps1','test_defender_module.ps1','test_temporary_ownership.ps1','test_workflow_profile_ownership.ps1')) {
+          foreach ($fixture in @('test_qualify_msix_install.ps1','test_msix_evidence.ps1','test_registration_ownership.ps1','test_process_observation.ps1','test_window_evidence.ps1','test_defender_module.ps1','test_temporary_ownership.ps1','test_workflow_profile_ownership.ps1','test_store_identity.ps1')) {
             & $powerShell -NoLogo -NoProfile -File (Join-Path 'win/msix' $fixture)
             if ($LASTEXITCODE -ne 0) { throw "Qualification fixture failed: $fixture" }
           }
@@ -82,10 +95,13 @@ jobs:
       - name: Verify packaged native main window
         shell: pwsh
         run: ./win/test-native-startup.ps1
-      - name: Qualify disposable MSIX package, identity, GTK startup and owned cleanup
+      - name: Qualify both fixed MSIX identities, installed journal workflow and owned cleanup
         id: msix_qualification
         shell: pwsh
         timeout-minutes: 10
+        env:
+          DAYQUAY_EXPORT_STORE_PACKAGE: ${{ github.event_name == 'workflow_dispatch' && inputs.export_store_package && 'true' || 'false' }}
+          DAYQUAY_REVIEWED_PUBLIC_SOURCE: ${{ inputs.reviewed_public_source }}
         run: ./win/msix/qualify-msix.ps1
       - name: Diagnose standalone GTK chooser after installed qualification failure
         if: failure() && steps.msix_qualification.outcome == 'failure'
@@ -95,7 +111,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: DayQuay-native-qualification
+          name: Jotmorrow-native-qualification
           path: |
             build-evidence/*.json
             build-evidence/*.txt
@@ -103,5 +119,18 @@ jobs:
             build-evidence/msix-install/*.json
             build-evidence/msix-install/*.txt
             build-evidence/msix-install/*.png
+            build-evidence/msix-store-install/*.json
+            build-evidence/msix-store-install/*.txt
+            build-evidence/msix-store-install/*.png
+          retention-days: 14
+          if-no-files-found: error
+      - name: Retain the reviewed unsigned Store package
+        if: success() && github.event_name == 'workflow_dispatch' && inputs.export_store_package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Jotmorrow-unsigned-store-package
+          path: |
+            build-evidence/store-export/Jotmorrow_1.0.1.0_x64.msix
+            build-evidence/store-export/release-ready.json
           retention-days: 14
           if-no-files-found: error

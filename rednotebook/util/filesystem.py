@@ -223,7 +223,7 @@ else:
     locale_dir = os.path.join(sys.prefix, "share", "locale")
 
 image_dir = os.path.join(app_dir, "images")
-frame_icon_dir = os.path.join(image_dir, "dayquay-icon")
+frame_icon_dir = os.path.join(image_dir, "jotmorrow-icon")
 files_dir = os.path.join(app_dir, "files")
 
 user_home_dir = os.path.expanduser("~")

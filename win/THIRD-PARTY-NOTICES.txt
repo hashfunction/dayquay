@@ -1,14 +1,14 @@
-DAYQUAY AND THIRD-PARTY NOTICES
+JOTMORROW AND THIRD-PARTY NOTICES
 ===============================
 
-DayQuay modifications are Copyright (c) 2026 Trieflow contributors.
-The original DayQuay sunrise, quay, and journal mark in
-rednotebook/images/dayquay-icon is Copyright (c) 2026 Trieflow contributors.
+Jotmorrow modifications are Copyright (c) 2026 Trieflow contributors.
+The original Jotmorrow sunrise, quay, and journal mark in
+rednotebook/images/jotmorrow-icon is Copyright (c) 2026 Trieflow contributors.
 
-DayQuay is based on RedNotebook 2.42. RedNotebook is Copyright (c)
+Jotmorrow is based on RedNotebook 2.42. RedNotebook is Copyright (c)
 2008-2025 Jendrik Seipp and contributors and is licensed under the GNU General
 Public License, version 2 or later. The bundled spellcheck component is under
-GPL version 3 or later, so the combined DayQuay application is distributed
+GPL version 3 or later, so the combined Jotmorrow application is distributed
 under GPL version 3 or later. LICENSE contains GPL version 2 and
 LICENSES/GPL-3.0.txt contains GPL version 3. Exact file-level copyright and
 license notices remain in debian/copyright.
@@ -41,8 +41,8 @@ License texts shipped with the application:
 * LICENSES/PyInstaller-COPYING.txt: PyInstaller licensing and bootloader exception.
 * LICENSES/Copyright_en_US: dictionary copyright and SCOWL terms (added at build).
 
-Corresponding modified DayQuay source, including the Windows build scripts,
-must be made available at https://dayquay.trieflow.com/source before any binary
+Corresponding modified Jotmorrow source, including the Windows build scripts,
+must be made available at https://jotmorrow.trieflow.com/source before any binary
 is distributed. That publication is a release gate, not a claim that the URL is
 currently live.
 
@@ -64,7 +64,7 @@ notices/pyenchant collections and the license texts above; it does not replace
 them or relicense their contents. Paths in this document are relative to the
 PyInstaller _internal data directory.
 
-https://dayquay.trieflow.com/source is the canonical landing page for the
+https://jotmorrow.trieflow.com/source is the canonical landing page for the
 application source, exact dependency source inputs, build recipes and original
 notices. Retained originals in this package are a notice supplement, not a
 substitute for delivering the corresponding source available through that page.
