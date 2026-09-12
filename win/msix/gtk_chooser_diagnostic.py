@@ -16,11 +16,20 @@ import time
 import uuid
 import xml.etree.ElementTree as ET
 
-from installed_workflow_qualification import _WindowsInput, _is_link_or_reparse
+from installed_workflow_qualification import _WindowsInput, _is_link_or_reparse, _windows_chooser_path
 
 
 MARKER = ".dayquay-chooser-probe-owner"
 ACTIONS = ("enter", "alt_o", "activate_default")
+PATH_STYLES = ("native", "forward_slash")
+
+
+def chooser_target(path, path_style):
+    if path_style == "native":
+        return _windows_chooser_path(path)
+    if path_style == "forward_slash":
+        return str(path).replace("\\", "/")
+    raise ValueError("unknown chooser diagnostic path spelling")
 
 
 def chooser_xml(glade):
@@ -98,7 +107,8 @@ def dispatch_action(native, hwnd, title, action, activate_default):
         return activate_default()
 
 
-def run_case(Gtk, Gdk, GLib, glade, parent_folder, action):
+def run_case(Gtk, Gdk, GLib, glade, parent_folder, action, path_style):
+    target = chooser_target(parent_folder / "ReopenProbe", path_style)
     builder = Gtk.Builder()
     builder.add_from_string(chooser_xml(glade))
     dialog = builder.get_object("dir_chooser")
@@ -109,10 +119,12 @@ def run_case(Gtk, Gdk, GLib, glade, parent_folder, action):
     dialog.set_transient_for(parent)
     dialog.set_current_folder(str(parent_folder))
     title = dialog.get_title()
-    target = (parent_folder / "ReopenProbe").as_posix()
     loop = GLib.MainLoop()
     responded = threading.Event()
-    record = {"action": action, "target": target, "events": [], "dropped_events": 0}
+    record = {
+        "action": action, "path_style": path_style, "target": target,
+        "events": [], "dropped_events": 0,
+    }
     hooked = set()
 
     def observe(kind, **fields):
@@ -258,7 +270,7 @@ def main():
         "schema": "dayquay-standalone-gtk-chooser-diagnostic-v1",
         "diagnostic_only": True, "installed_workflow_qualified": False,
         "process_id": os.getpid(), "cases": [],
-        "input_helper": "unchanged installed_workflow_qualification._WindowsInput",
+        "input_helper": "installed_workflow_qualification._WindowsInput",
     }
     root = token = None
     try:
@@ -279,8 +291,11 @@ def main():
         ).hexdigest()
         root, token = create_probe_tree()
         receipt["owned_temporary_root"] = str(root)
-        for action in ACTIONS:
-            receipt["cases"].append(run_case(Gtk, Gdk, GLib, args.glade, root / "DayQuay", action))
+        for path_style in PATH_STYLES:
+            for action in ACTIONS:
+                receipt["cases"].append(run_case(
+                    Gtk, Gdk, GLib, args.glade, root / "DayQuay", action, path_style,
+                ))
     except Exception as exc:
         receipt["probe_error"] = f"{type(exc).__name__}: {exc}"[:2048]
     finally:

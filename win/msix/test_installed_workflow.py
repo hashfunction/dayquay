@@ -347,7 +347,7 @@ class InstalledWorkflowTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "chooser stayed open"):
                 native._select_path("Select a directory", self.reopen_probe, "O")
         self.assertEqual(native.chord.call_args_list, [mock.call("CTRL", "L"), mock.call("ALT", "O")])
-        native.text.assert_called_once_with(str(self.reopen_probe))
+        native.text.assert_called_once_with(str(self.reopen_probe).replace("/", "\\"))
         native.press.assert_called_once_with("ENTER")
         self.assertEqual(native._path_selection["path"], str(self.reopen_probe))
         self.assertTrue(native._path_selection["is_directory"])
@@ -355,6 +355,61 @@ class InstalledWorkflowTests(unittest.TestCase):
             "dialog_foreground", "after_ctrl_l", "after_path_text", "after_enter", "after_accept_key",
         ])
         self.assertEqual(native._diagnostic_trace[-1]["state"]["focus"]["hwnd"], 17)
+
+    def test_chooser_input_uses_windows_separators_with_real_action_order(self):
+        for supplied, expected in (
+            ("D:/a/_temp/DayQuay/ReopenProbe", r"D:\a\_temp\DayQuay\ReopenProbe"),
+            (r"C:\Users/runneradmin/DayQuay/data", r"C:\Users\runneradmin\DayQuay\data"),
+            ("C:/Journals/Café, notes/backup.zip", "C:\\Journals\\Café, notes\\backup.zip"),
+            ("//server/share/DayQuay/data", r"\\server\share\DayQuay\data"),
+            (r"C:\DayQuay\data", r"C:\DayQuay\data"),
+        ):
+            with self.subTest(supplied=supplied):
+                native = object.__new__(workflow._WindowsInput)
+                calls = mock.Mock()
+                native._wait_window = calls.wait_window
+                calls.wait_window.side_effect = [17, None]
+                native._foreground = calls.foreground
+                native._owned_windows = lambda: []
+                native._observe_diagnostic_state = lambda: {}
+                native.chord, native.text, native.press = calls.chord, calls.text, calls.press
+                with mock.patch.object(workflow.time, "sleep"):
+                    native._select_path("Select a directory", supplied, "O")
+                self.assertEqual(calls.mock_calls, [
+                    mock.call.wait_window("Select a directory"),
+                    mock.call.foreground(17, "Select a directory"),
+                    mock.call.chord("CTRL", "L"),
+                    mock.call.text(expected),
+                    mock.call.press("ENTER"),
+                    mock.call.wait_window("Select a directory", present=False),
+                ])
+                self.assertEqual(native._path_selection["path"], supplied)
+                self.assertEqual(native._path_selection["input_text"], expected)
+
+    def test_chooser_foreground_refusal_prevents_path_and_key_input(self):
+        native = object.__new__(workflow._WindowsInput)
+        native._wait_window = mock.Mock(return_value=17)
+        native._foreground = mock.Mock(side_effect=ValueError("ownership changed"))
+        native.chord, native.text, native.press = mock.Mock(), mock.Mock(), mock.Mock()
+        with self.assertRaisesRegex(ValueError, "ownership"):
+            native._select_path("Select a directory", "C:/DayQuay/data", "O")
+        native.chord.assert_not_called()
+        native.text.assert_not_called()
+        native.press.assert_not_called()
+
+    def test_general_journal_text_preserves_slashes_and_unicode_input_units(self):
+        native = object.__new__(workflow._WindowsInput)
+        sent = []
+        native._send = sent.extend
+        text = "Journal/entry — café 💡"
+        native.text(text)
+        encoded = b"".join(key.ki.wScan.to_bytes(2, "little") for key in sent[::2])
+        self.assertEqual(encoded.decode("utf-16-le"), text)
+        self.assertEqual(len(sent), len(text.encode("utf-16-le")))
+        for down, up in zip(sent[::2], sent[1::2]):
+            self.assertEqual(down.ki.wScan, up.ki.wScan)
+            self.assertEqual(down.ki.dwFlags, native.KEYEVENTF_UNICODE)
+            self.assertEqual(up.ki.dwFlags, native.KEYEVENTF_UNICODE | native.KEYEVENTF_KEYUP)
 
     def test_diagnostic_observation_failure_does_not_inject_or_interrupt_input(self):
         native = object.__new__(workflow._WindowsInput)
@@ -368,7 +423,7 @@ class InstalledWorkflowTests(unittest.TestCase):
         with mock.patch.object(workflow.time, "sleep"):
             native._select_path("Select a directory", self.reopen_probe, "O")
         native.chord.assert_called_once_with("CTRL", "L")
-        native.text.assert_called_once_with(str(self.reopen_probe))
+        native.text.assert_called_once_with(str(self.reopen_probe).replace("/", "\\"))
         native.press.assert_called_once_with("ENTER")
         self.assertEqual(native._diagnostic_trace[-1]["state"], {"observation_error": "focus unavailable"})
 

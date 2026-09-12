@@ -94,6 +94,20 @@ class ChooserDiagnosticTests(unittest.TestCase):
                 self.assertEqual(native.mock_calls, expected)
                 self.assertEqual(direct.call_count, int(action == "activate_default"))
 
+    def test_path_comparison_keeps_both_spellings_of_one_local_target(self):
+        expected_native = "D:\\a\\_temp\\DayQuay\\Café, notes"
+        expected_forward = "D:/a/_temp/DayQuay/Café, notes"
+        for supplied in (expected_native, expected_forward):
+            self.assertEqual(diagnostic.chooser_target(supplied, "native"), expected_native)
+            self.assertEqual(diagnostic.chooser_target(supplied, "forward_slash"), expected_forward)
+        with self.assertRaisesRegex(ValueError, "path spelling"):
+            diagnostic.chooser_target(expected_native, "other")
+
+    def test_native_path_case_reuses_installed_input_conversion(self):
+        with mock.patch.object(diagnostic, "_windows_chooser_path", return_value="converted") as convert:
+            self.assertEqual(diagnostic.chooser_target("C:/DayQuay/data", "native"), "converted")
+        convert.assert_called_once_with("C:/DayQuay/data")
+
     def test_foreign_foreground_refusal_stops_every_action(self):
         for action in diagnostic.ACTIONS:
             native = mock.Mock()

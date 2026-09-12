@@ -20,6 +20,13 @@ RESTORE_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 JOURNAL_DIRECTORY_CHOOSER_TITLE = "Select a directory"
 
 
+def _windows_chooser_path(path):
+    # GTK 3.24.52 splits its location entry at G_DIR_SEPARATOR (backslash
+    # on Windows). UCRT Python can spell the same local path with slashes.
+    # Keep this conversion at the chooser boundary, not in general text input.
+    return str(path).replace("/", "\\")
+
+
 def _sha256(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -632,8 +639,10 @@ class _WindowsInput:
         self._foreground(self.main_hwnd, expected)
 
     def _select_path(self, dialog_title, path, accept_key):
+        input_text = _windows_chooser_path(path)
         self._path_selection = {
             "dialog_title": dialog_title, "path": str(path)[:4096], "accept_key": accept_key,
+            "input_text": input_text[:4096],
         }
         try:
             self._path_selection.update(
@@ -647,7 +656,7 @@ class _WindowsInput:
         self._record_diagnostic_step("dialog_foreground")
         self.chord("CTRL", "L")
         self._record_diagnostic_step("after_ctrl_l")
-        self.text(str(path))
+        self.text(input_text)
         self._record_diagnostic_step("after_path_text")
         self.press("ENTER")
         self._record_diagnostic_step("after_enter")
