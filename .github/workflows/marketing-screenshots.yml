@@ -1,0 +1,51 @@
+name: Jotmorrow real product screenshots
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  capture-existing-store-package:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: 64e8174c5f375fecf45539594b6a6b4beac8e025
+          path: qualified-source
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12.10'
+          architecture: x64
+      - name: Verify capture-only input, window and cleanup boundaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          python -m unittest discover -s win/marketing -p 'test_*.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Capture Python boundary tests failed.' }
+          $pwsh=(Get-Process -Id $PID).Path
+          foreach ($fixture in @('test_capture_helpers.ps1','test_display_modes.ps1')) {
+            & $pwsh -NoProfile -File (Join-Path 'win/marketing' $fixture)
+            if ($LASTEXITCODE -ne 0) { throw "Capture native helper fixture failed: $fixture" }
+          }
+      - name: Fetch and verify exact already-qualified package and metadata
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python win/marketing/prepare_capture.py --output "$env:RUNNER_TEMP/jotmorrow-capture-inputs" --qualified-source qualified-source
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned existing Jotmorrow capture inputs did not verify.' }
+      - name: Capture actual filled journal and portable restore UI
+        shell: pwsh
+        run: ./win/marketing/capture.ps1 -Inputs "$env:RUNNER_TEMP/jotmorrow-capture-inputs" -QualifiedSource qualified-source -CaptureOutput build-evidence/marketing
+      - name: Retain real screenshots and capture receipts only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: Jotmorrow-real-product-screenshots
+          path: |
+            build-evidence/marketing/*.png
+            build-evidence/marketing/*.json
+          retention-days: 14
+          if-no-files-found: warn

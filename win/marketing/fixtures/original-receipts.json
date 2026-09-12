@@ -1,0 +1,353 @@
+{
+  "ready": {
+    "evidence": {
+      "build-evidence/msix-store-install/installation-qualification.json": {
+        "bytes": 8680,
+        "sha256": "10b4657d67a3de84b3ca8c4291388864c6781c7444572c2f87e9cc7c5a098008"
+      },
+      "build-evidence/msix-store-install/installed-consumer-workflow.json": {
+        "bytes": 3387,
+        "sha256": "e6474f3f17cf1c6bce29bfc99ff26e158f2def11815b6e6df8af71b5aa0c7c07"
+      },
+      "build-evidence/msix-store-install/loaded-modules.json": {
+        "bytes": 61033,
+        "sha256": "9105c01c8ee8e332b2f304f43ea4f146a8463a10657e71df12729bb08c841c58"
+      },
+      "build-evidence/msix-store-install/qualification-window.png": {
+        "bytes": 47243,
+        "sha256": "dfaa56a7b766fa5379b9ca10eb583479f770f4a68564b996db674cddd2300874"
+      },
+      "build-evidence/msix-store-install/window-observation.json": {
+        "bytes": 2061,
+        "sha256": "5d738dcdde3dfc381db8eb0b7fa722083aa830783d87e4143ac1266e9fbe3f5f"
+      },
+      "build-evidence/msix-store-package-record.json": {
+        "bytes": 899881,
+        "sha256": "ff089d4c1874bfda9ae75d9ec7b700fde1d647e97745073dc6e66861b09bec2a"
+      },
+      "build-evidence/windows-startup.json": {
+        "bytes": 800,
+        "sha256": "943ec62c2b2e66e94885e97951c0593bb4313e460372877dc87a1c219038a810"
+      },
+      "win/msix/installed_workflow_qualification.py": {
+        "bytes": 34584,
+        "sha256": "55e5220981d8489ad979ed526c81895e39f9bf888c9595dc2f361dbe9dfa9995"
+      },
+      "win/msix/native-source-publication.json": {
+        "bytes": 405070,
+        "sha256": "57b2acef8babaf8e2f392a44b7b4d591203a05b30ea99c13fbc217ab379e780c"
+      }
+    },
+    "generated_at_utc": "2026-09-12T08:03:52.890904+00:00",
+    "identity": {
+      "applicationId": "DayQuay",
+      "architecture": "x64",
+      "capability": "runFullTrust",
+      "deviceFamily": "Windows.Desktop",
+      "executable": "Jotmorrow.exe",
+      "maxVersionTested": "10.0.26100.0",
+      "minVersion": "10.0.19041.0",
+      "packageName": "1659hashfunction.DayQuay",
+      "publisher": "CN=B6A2631A-FD32-45CC-AE12-82466975F528",
+      "version": "1.0.1.0"
+    },
+    "native_source_publication": {
+      "application": {
+        "bound_source_inputs": 38,
+        "name": "Jotmorrow",
+        "source_page": "https://jotmorrow.trieflow.com/source",
+        "version": "1.0.1"
+      },
+      "mapped_vendor_files": 1165,
+      "native_archives": 178,
+      "native_versions": 89,
+      "original_notice_files": 766,
+      "source_archive": {
+        "bytes": 483645440,
+        "name": "dayquay-native-sources-df058.tar",
+        "sha256": "01555441371a207b2d97bb9835bc26a34d89056382d2cada58d29d508bc69ee0"
+      },
+      "source_manifest": {
+        "bytes": 389430,
+        "name": "source-manifest.json",
+        "sha256": "63cab5ab45105a57d95f7d6215d8777495acfb4dacbf3a939ddb8cb15bc4697f"
+      },
+      "source_release": "https://github.com/hashfunction/dayquay/releases/tag/native-sources-2026-09-11-df058",
+      "vendor_binary_reproduction_claimed": false
+    },
+    "public_application_binary_released": false,
+    "public_source_responses": {
+      "commit": "64e8174c5f375fecf45539594b6a6b4beac8e025",
+      "manifest": {
+        "bytes": 389430,
+        "sha256": "63cab5ab45105a57d95f7d6215d8777495acfb4dacbf3a939ddb8cb15bc4697f"
+      },
+      "release": 387330191
+    },
+    "reviewed_public_source": "64e8174c5f375fecf45539594b6a6b4beac8e025",
+    "schema_version": 1,
+    "source_commit": "64e8174c5f375fecf45539594b6a6b4beac8e025",
+    "source_tree": "68cc3836b32222b0e39cbc2d1a36c82e76e2b612",
+    "store_certification_claimed": false,
+    "submitted": false,
+    "unsigned_package": {
+      "bytes": 39743804,
+      "name": "Jotmorrow_1.0.1.0_x64.msix",
+      "sha256": "47b1b5153eedbbf4709ff8dd143164ff90445009137682722da4951e13b066fe"
+    },
+    "unsigned_store_package_ready": true,
+    "workflow_run_attempt": "1",
+    "workflow_run_id": "34681664116"
+  },
+  "installed": {
+    "schema_version": 1,
+    "generated_at_utc": "2026-09-12T08:03:22.7363948Z",
+    "workflow_run_id": "34681664116",
+    "workflow_run_attempt": "1",
+    "source_commit": "64e8174c5f375fecf45539594b6a6b4beac8e025",
+    "qualification_identity_only": false,
+    "identity_mode": "store",
+    "identity": {
+      "packageName": "1659hashfunction.DayQuay",
+      "publisher": "CN=B6A2631A-FD32-45CC-AE12-82466975F528",
+      "version": "1.0.1.0",
+      "architecture": "x64",
+      "applicationId": "DayQuay",
+      "executable": "Jotmorrow.exe",
+      "deviceFamily": "Windows.Desktop",
+      "minVersion": "10.0.19041.0",
+      "maxVersionTested": "10.0.26100.0",
+      "capability": "runFullTrust"
+    },
+    "aumid": "1659hashfunction.DayQuay_r3hxytd7jt6c4!DayQuay",
+    "package_full_name": "1659hashfunction.DayQuay_1.0.1.0_x64__r3hxytd7jt6c4",
+    "add_appx_completed": true,
+    "registration_ownership_established": true,
+    "owned_package_full_name": "1659hashfunction.DayQuay_1.0.1.0_x64__r3hxytd7jt6c4",
+    "preflight_package_full_names": [],
+    "residual_package_full_names": [],
+    "activated_process_package_full_name": "1659hashfunction.DayQuay_1.0.1.0_x64__r3hxytd7jt6c4",
+    "unsigned_package_sha256": "47b1b5153eedbbf4709ff8dd143164ff90445009137682722da4951e13b066fe",
+    "signed_copy_sha256": "59e1795cbc4d62e0dda0b4ceac05cd3d99042a88123ecd4a34e53280f9c47482",
+    "unsigned_package_unchanged": true,
+    "signtool": {
+      "path": "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\signtool.exe",
+      "bytes": 543144,
+      "sha256": "e7b517a6a2828af2d1fba3da60ae1e322a95141bfae192622725329630caa2b3",
+      "sdk_version": "10.0.26100.0"
+    },
+    "certificate_private_key_exported": false,
+    "executable_sha256": "5a5fd093796cc94852b96d08f50af6e816aefb7b212ee3acdc932ec4dc063429",
+    "loaded_module_count": 184,
+    "window": {
+      "expected_title": "Jotmorrow - Saturday, 9/12/2026",
+      "title": "Jotmorrow - Saturday, 9/12/2026",
+      "process_id": 6108,
+      "main_window_handle": 1900842,
+      "visible": true,
+      "width": 992.0,
+      "height": 688.0,
+      "controls": [
+        {
+          "name": "Jotmorrow - Saturday, 9/12/2026",
+          "control_type": "ControlType.Window",
+          "enabled": true,
+          "offscreen": false,
+          "process_id": 6108
+        }
+      ],
+      "screenshot_sha256": "dfaa56a7b766fa5379b9ca10eb583479f770f4a68564b996db674cddd2300874",
+      "sampled_colors": 414,
+      "accessible_elements": 1,
+      "top_level_windows": [
+        {
+          "name": "Jotmorrow - Saturday, 9/12/2026",
+          "offscreen": false
+        }
+      ],
+      "actionable_controls_verified": false,
+      "actionable_control_count": 0,
+      "screenshot_captured": true,
+      "screenshot_error": null,
+      "capture_geometry": {
+        "adjusted": true,
+        "requested": {
+          "y": 16,
+          "height": 688,
+          "x": 16,
+          "width": 992
+        },
+        "after": {
+          "process_id": 6108,
+          "visible": true,
+          "work_area": {
+            "y": 0,
+            "height": 720,
+            "x": 0,
+            "width": 1024
+          },
+          "bounds": {
+            "y": 16.0,
+            "height": 688.0,
+            "x": 16.0,
+            "width": 992.0
+          },
+          "title": "Jotmorrow - Saturday, 9/12/2026",
+          "virtual_screen": {
+            "y": 0,
+            "height": 768,
+            "x": 0,
+            "width": 1024
+          }
+        },
+        "before": {
+          "process_id": 6108,
+          "visible": true,
+          "work_area": {
+            "y": 0,
+            "height": 720,
+            "x": 0,
+            "width": 1024
+          },
+          "bounds": {
+            "y": 0.0,
+            "height": 739.0,
+            "x": 0.0,
+            "width": 1040.0
+          },
+          "title": "Jotmorrow - Saturday, 9/12/2026",
+          "virtual_screen": {
+            "y": 0,
+            "height": 768,
+            "x": 0,
+            "width": 1024
+          }
+        }
+      },
+      "startup_limited": true,
+      "accessibility_scope": "GTK startup only; journal/backup/restore workflows untested"
+    },
+    "installed_consumer_workflow": {
+      "backup": {
+        "archive": "D:/a/_temp/.dayquay-install-983f3d590ddf4193bb3752d71732f8a2/Jotmorrow-consumer-backup.zip",
+        "archive_bytes": 581,
+        "archive_sha256": "984b1cc41ea89bea904ebed09bb4159cb2f0cfc63ecdc755fc823f5d1c42c346",
+        "files": {
+          "2026-09.txt": {
+            "bytes": 134,
+            "sha256": "b67df2cdbe205f4f91d6cc6835e417fe8e61d84b2211c255d092c9b6a8429082"
+          }
+        },
+        "manifest_verified": true
+      },
+      "backup_after_restore": {
+        "archive": "D:/a/_temp/.dayquay-install-983f3d590ddf4193bb3752d71732f8a2/Jotmorrow-consumer-backup.zip",
+        "archive_bytes": 581,
+        "archive_sha256": "984b1cc41ea89bea904ebed09bb4159cb2f0cfc63ecdc755fc823f5d1c42c346",
+        "files": {
+          "2026-09.txt": {
+            "bytes": 134,
+            "sha256": "b67df2cdbe205f4f91d6cc6835e417fe8e61d84b2211c255d092c9b6a8429082"
+          }
+        },
+        "manifest_verified": true
+      },
+      "helper_sha256": "55e5220981d8489ad979ed526c81895e39f9bf888c9595dc2f361dbe9dfa9995",
+      "input_method": "owned Win32 SendInput keyboard/mouse",
+      "journal_backup_restore_workflow_tested": true,
+      "main_window_handle": 1900842,
+      "original_after_restore": {
+        "additional_text_sha256": [
+          "1d9845a50e436c3d37f58e2f6fdc8132ff02d8f6f6dec93153f735780fe66baa"
+        ],
+        "files": {
+          "2026-09.txt": {
+            "bytes": 134,
+            "sha256": "b67df2cdbe205f4f91d6cc6835e417fe8e61d84b2211c255d092c9b6a8429082"
+          }
+        },
+        "journal_root": "C:/Users/runneradmin/AppData/Roaming/DayQuay/data",
+        "sentinel_sha256": "0a2c702e853dd0eabbf237543e05920c2e1b37aeff277f4b818fee30a45a37c7"
+      },
+      "process_id": 6108,
+      "reopen_transition": {
+        "away_title": "Jotmorrow - ReopenProbe - Saturday, 9/12/2026",
+        "return_title": "Jotmorrow - Saturday, 9/12/2026"
+      },
+      "reopened": {
+        "additional_text_sha256": [
+          "1d9845a50e436c3d37f58e2f6fdc8132ff02d8f6f6dec93153f735780fe66baa"
+        ],
+        "files": {
+          "2026-09.txt": {
+            "bytes": 134,
+            "sha256": "b67df2cdbe205f4f91d6cc6835e417fe8e61d84b2211c255d092c9b6a8429082"
+          }
+        },
+        "journal_root": "C:/Users/runneradmin/AppData/Roaming/DayQuay/data",
+        "sentinel_sha256": "0a2c702e853dd0eabbf237543e05920c2e1b37aeff277f4b818fee30a45a37c7"
+      },
+      "restored": {
+        "additional_text_sha256": [
+          "1d9845a50e436c3d37f58e2f6fdc8132ff02d8f6f6dec93153f735780fe66baa"
+        ],
+        "files": {
+          "2026-09.txt": {
+            "bytes": 134,
+            "sha256": "b67df2cdbe205f4f91d6cc6835e417fe8e61d84b2211c255d092c9b6a8429082"
+          }
+        },
+        "journal_root": "C:/Users/runneradmin/AppData/Roaming/DayQuay/RestoredQualification",
+        "sentinel_sha256": "0a2c702e853dd0eabbf237543e05920c2e1b37aeff277f4b818fee30a45a37c7"
+      },
+      "restored_window_title": "Jotmorrow - RestoredQualification - Saturday, 9/12/2026",
+      "saved": {
+        "additional_text_sha256": [],
+        "files": {
+          "2026-09.txt": {
+            "bytes": 74,
+            "sha256": "f29d1a4011b5c2f1b0fd2f53ebfb63a7de9653c0edf34706e78b9fec9b7a4529"
+          }
+        },
+        "journal_root": "C:/Users/runneradmin/AppData/Roaming/DayQuay/data",
+        "sentinel_sha256": "0a2c702e853dd0eabbf237543e05920c2e1b37aeff277f4b818fee30a45a37c7"
+      },
+      "schema_version": 1,
+      "sentinel_sha256": "0a2c702e853dd0eabbf237543e05920c2e1b37aeff277f4b818fee30a45a37c7",
+      "source_commit": "64e8174c5f375fecf45539594b6a6b4beac8e025",
+      "workflow_run_attempt": "1",
+      "workflow_run_id": "34681664116"
+    },
+    "workflow_diagnostic_error": null,
+    "workflow_profile_removed": true,
+    "process_exit": {
+      "process_id": 6108,
+      "wait_completed": true,
+      "exit_code": 0,
+      "normal_exit": true,
+      "observation_error": null
+    },
+    "cleanup_process_exit": {
+      "process_id": 6108,
+      "wait_completed": true,
+      "exit_code": 0,
+      "normal_exit": true,
+      "observation_error": null
+    },
+    "process_shutdown_verified": true,
+    "process_identity_ownership_established": true,
+    "clean_close_verified": true,
+    "uninstall_verified": true,
+    "installation_qualification_passed": true,
+    "workflow_acceptance": false,
+    "journal_backup_restore_workflow_tested": true,
+    "native_source_clearance": false,
+    "upgrade_tested": false,
+    "wack_tested": false,
+    "store_identity_used": true,
+    "public_release": false,
+    "primary_error": null,
+    "cleanup_errors": [],
+    "evidence_errors": []
+  }
+}
