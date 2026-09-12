@@ -25,3 +25,5 @@ pwsh -NoProfile -File win/marketing/test_display_modes.ps1
 ```
 
 `fixtures/original-receipts.json` retains actual original successful receipts solely for read-only validator regression. Local UI/frame/ZIP fixtures are explicitly synthetic and cannot create qualifying screenshots.
+
+Capture input regression: [newline-repair-review.md](newline-repair-review.md) documents native run 34684051917 and the capture-only ordinary Enter route. Run capture Python tests with the hash-pinned host serializer dependency from `requirements-test.txt`; the workflow installs it only into its temporary test environment. Product and qualification binaries remain unchanged.

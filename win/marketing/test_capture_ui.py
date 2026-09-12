@@ -8,6 +8,14 @@ import zipfile
 import sys
 from types import SimpleNamespace
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'msix'))
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
+from rednotebook.data import Month
+from rednotebook import storage
+
+def save_real_month(journal,text):
+    month=Month(2026,9,{12:{'text':text}})
+    storage._save_month_to_disk(month,str(journal))
+
 import installed_workflow_qualification as original
 try:
     import capture_ui as capture
@@ -34,7 +42,7 @@ class CaptureUITests(unittest.TestCase):
             class UI:
                 current_title='Jotmorrow - Saturday, 9/12/2026'
                 def replace_editor_text(self,text):self.text=text;calls.append('type')
-                def save(self):(journal/'2026-09.txt').write_text(self.text);calls.append('save')
+                def save(self):save_real_month(journal,self.text);calls.append('save')
                 def show_top(self):calls.append('show-top')
                 def capture(self,name):calls.append(name)
                 def create_backup(self,path):
@@ -58,7 +66,7 @@ class CaptureUITests(unittest.TestCase):
             root=Path(t).resolve();journal=root/'data';journal.mkdir();calls=[]
             class UI:
                 current_title='Jotmorrow - Saturday, 9/12/2026'
-                def replace_editor_text(self,text):(journal/'2026-09.txt').write_text(text)
+                def replace_editor_text(self,text):save_real_month(journal,text)
                 def save(self):pass
                 def show_top(self):pass
                 def capture(self,name):calls.append(name)

@@ -1,0 +1,6 @@
+# Host-side production journal serializer regression only; never added to the app.
+# PyPI PyYAML 6.0.3, matching the qualified MSYS2 package's upstream version.
+# CPython 3.12 Windows x64 and macOS arm64 wheels, respectively.
+PyYAML==6.0.3 \
+    --hash=sha256:5fcd34e47f6e0b794d17de1b4ff496c00986e1c83f7ab2fb8fcfe9616ff7477b \
+    --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0

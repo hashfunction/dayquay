@@ -1,0 +1,83 @@
+{
+  "captured": false,
+  "consumer_acceptance": false,
+  "error": "timed out waiting for saved original marketing entry: saved journal does not contain each qualification marker once",
+  "fictional_journal": {
+    "bytes": 825,
+    "fictional_saved_text": "12:\n  text: 'Saturday notes | 12 September 2026A slower day, with room to notice things.A\n    walk by the riverThe morning light made the water look silver. I left my phone\n    in mybag, took the longer path home, and stopped for coffee on the corner.A small\n    reminder that a good day does not need a crowded schedule.An idea worth keepingMake\n    a Sunday ritual of choosing one thing to learn, one person tocatch up with, and\n    one small task that will make the week easier.Grateful for- A conversation that\n    lasted longer than planned.- Fresh bread, an open window, and time to read a few\n    chapters.- The feeling of finishing one thing before starting another.For next\n    weekBook the library workshop. Print a favorite photo for the desk.Keep a little\n    space for the unexpected.#weekend #ideas #gratitude'\n",
+    "filename": "2026-09.txt",
+    "required_text_counts": {
+      "#weekend #ideas #gratitude": 1,
+      "A slower day, with room to notice things.": 1,
+      "Keep a little space for the unexpected.": 0
+    },
+    "sha256": "0cf99b6cb42f1ff3e2f4b689a4d652e79e74773a96c030f02b23f58584342385",
+    "text_truncated": false
+  },
+  "native": {
+    "failure_state": {
+      "active": {
+        "class_name": "gdkWindowToplevel",
+        "enabled": true,
+        "hwnd": 1966110,
+        "live": true,
+        "owned": true,
+        "title": "Jotmorrow - Saturday, 9/12/2026",
+        "visible": true
+      },
+      "caret": {
+        "hwnd": 0,
+        "live": false,
+        "owned": false
+      },
+      "focus": {
+        "class_name": "gdkWindowToplevel",
+        "enabled": true,
+        "hwnd": 1966110,
+        "live": true,
+        "owned": true,
+        "title": "Jotmorrow - Saturday, 9/12/2026",
+        "visible": true
+      },
+      "focus_scope": "Win32 HWND focus; GTK widget/default-button focus may require the failure screenshot",
+      "foreground": {
+        "class_name": "gdkWindowToplevel",
+        "enabled": true,
+        "hwnd": 1966110,
+        "live": true,
+        "owned": true,
+        "title": "Jotmorrow - Saturday, 9/12/2026",
+        "visible": true
+      },
+      "gui_flags": 0,
+      "gui_thread_id": 1432,
+      "input_target": {
+        "class_name": "gdkWindowToplevel",
+        "enabled": true,
+        "hwnd": 1966110,
+        "live": true,
+        "owned": true,
+        "title": "Jotmorrow - Saturday, 9/12/2026",
+        "visible": true
+      },
+      "owned_windows": [
+        {
+          "class_name": "gdkWindowToplevel",
+          "enabled": true,
+          "hwnd": 1966110,
+          "live": true,
+          "owned": true,
+          "title": "Jotmorrow - Saturday, 9/12/2026",
+          "visible": true
+        }
+      ]
+    },
+    "input_target": {
+      "hwnd": 1966110,
+      "title": "Jotmorrow - Saturday, 9/12/2026"
+    },
+    "path_selection": null,
+    "trace": [],
+    "wait_condition": null
+  }
+}

@@ -75,6 +75,14 @@ def journal_diagnostics(original,journal):
 def ui_class(original,args,captures,frame):
     class UI(original._WindowsInput):
         VK=dict(original._WindowsInput.VK,HOME=0x24)
+        def replace_editor_text(self,value):
+            # Run 34684051917 saved every character except Unicode LF packets.
+            # Keep the original owned editor focus and SendInput boundary, but
+            # use ordinary Return key events for GTK paragraph breaks.
+            self._main();self._click_editor();self.chord('CTRL','A')
+            for index,line in enumerate(value.split('\n')):
+                if index:self.press('ENTER')
+                if line:self.text(line)
         def show_top(self):self._main();self.chord('CTRL','HOME')
         def capture(self,name,target=None,title=None):
             self._assert_process_live()

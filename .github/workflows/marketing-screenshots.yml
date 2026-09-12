@@ -22,6 +22,9 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
+          python -m pip install --require-hashes --only-binary=:all: --no-deps --target "$env:RUNNER_TEMP/jotmorrow-capture-test-deps" -r win/marketing/requirements-test.txt
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned host-side serializer test dependency failed.' }
+          $env:PYTHONPATH="$env:RUNNER_TEMP/jotmorrow-capture-test-deps"
           python -m unittest discover -s win/marketing -p 'test_*.py' -v
           if ($LASTEXITCODE -ne 0) { throw 'Capture Python boundary tests failed.' }
           $pwsh=(Get-Process -Id $PID).Path
