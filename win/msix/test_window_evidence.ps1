@@ -94,13 +94,14 @@ Write-Output 'PASS production screenshot wiring and native declaration compilati
 
 # Failure capture is read-only: it must never focus/move a window and may read
 # pixels only for the exact already-foreground owned dialog.
-foreach($case in @('owned','foreign','wrong-hwnd','wrong-title','hidden','foreign-foreground','outside-desktop','oversized','changed-after-capture','capture-error')) {
+foreach($case in @('partial-bottom','owned','partial-negative-monitor','foreign','wrong-hwnd','wrong-title','hidden','foreign-foreground','outside-desktop','oversized','changed-after-capture','desktop-changed','capture-error')) {
     $script:failureObservation=@{process_id=123;window_handle=17;title='Select a directory';visible=$true;foreground_window_handle=17;
         bounds=@{x=20;y=30;width=600;height=400};virtual_screen=@{x=0;y=0;width=1024;height=768}}
     $script:failureCaptures=0
+    $script:capturedBounds=$null
     $operations=@{
         Observe={return ($script:failureObservation | ConvertTo-Json -Depth 5 | ConvertFrom-Json -AsHashtable)}
-        Capture={param($bounds) $script:failureCaptures++; return [byte[]](1,2,3)}
+        Capture={param($bounds) $script:failureCaptures++; $script:capturedBounds=$bounds; return [byte[]](1,2,3)}
     }
     switch($case) {
         foreign {$script:failureObservation.process_id=999}
@@ -108,16 +109,23 @@ foreach($case in @('owned','foreign','wrong-hwnd','wrong-title','hidden','foreig
         wrong-title {$script:failureObservation.title='Other'}
         hidden {$script:failureObservation.visible=$false}
         foreign-foreground {$script:failureObservation.foreground_window_handle=99}
-        outside-desktop {$script:failureObservation.bounds.x=1000}
+        partial-bottom {$script:failureObservation.bounds=@{x=17;y=0;width=1006;height=781}}
+        partial-negative-monitor {$script:failureObservation.virtual_screen.x=-1024;$script:failureObservation.bounds=@{x=-1050;y=30;width=600;height=400}}
+        outside-desktop {$script:failureObservation.bounds.x=2000}
+        desktop-changed {$operations.Capture={param($bounds) $script:failureCaptures++;$script:failureObservation.virtual_screen.width=1023;return [byte[]](1,2,3)}}
         oversized {$script:failureObservation.bounds.width=3000}
         changed-after-capture {$operations.Capture={param($bounds) $script:failureCaptures++;$script:failureObservation.foreground_window_handle=99;return [byte[]](1,2,3)}}
         capture-error {$operations.Capture={param($bounds) $script:failureCaptures++;throw 'capture failed'}}
     }
     $details=@{};$failure=$null;$bytes=$null
     try {$bytes=Invoke-DayQuayFailureCapture 123 17 'Select a directory' $operations $details} catch {$failure=$_.Exception.Message}
-    if (($case -eq 'owned') -eq [bool]$failure) {throw "Failure capture result differs: $case / $failure"}
+    if (($case -in @('owned','partial-bottom','partial-negative-monitor')) -eq [bool]$failure) {throw "Failure capture result differs: $case / $failure"}
     if ($case -eq 'owned' -and ($bytes.Count -ne 3 -or $script:failureCaptures -ne 1)) {throw 'Owned dialog was not captured exactly once'}
-    if ($case -notin @('owned','changed-after-capture','capture-error') -and $script:failureCaptures) {throw "Unowned/unbounded pixels were captured: $case"}
+    if ($case -notin @('owned','partial-bottom','partial-negative-monitor','changed-after-capture','desktop-changed','capture-error') -and $script:failureCaptures) {throw "Unowned/unbounded pixels were captured: $case"}
+    if ($case -eq 'partial-bottom' -and ($script:capturedBounds.x -ne 17 -or $script:capturedBounds.y -ne 0 -or
+        $script:capturedBounds.width -ne 1006 -or $script:capturedBounds.height -ne 768 -or $details.fully_visible)) {throw 'Partial dialog capture did not preserve the measured visible intersection'}
+    if ($case -eq 'partial-negative-monitor' -and ($script:capturedBounds.x -ne -1024 -or $script:capturedBounds.width -ne 574 -or $details.fully_visible)) {throw 'Negative-monitor intersection incorrect'}
+    if ($case -eq 'owned' -and -not $details.fully_visible) {throw 'Fully visible diagnostic was mislabeled'}
     if ($failure -and $null -ne $bytes) {throw "Rejected capture returned pixels: $case"}
 }
 Write-Output 'PASS failure-only capture: exact owner/foreground/bounds, post-capture recheck, and native capture error'

@@ -445,21 +445,31 @@ function Assert-DayQuayFailureCaptureSnapshot($Snapshot, [int]$ProcessId, [int64
     Assert-DayQuayFiniteRectangle $Snapshot.bounds
     Assert-DayQuayFiniteRectangle $Snapshot.virtual_screen
     $bounds=$Snapshot.bounds; $desktop=$Snapshot.virtual_screen
-    if ($bounds.width -gt 2048 -or $bounds.height -gt 2048 -or ($bounds.width*$bounds.height) -gt 2097152 -or
-        $bounds.x -lt $desktop.x -or $bounds.y -lt $desktop.y -or
-        ($bounds.x+$bounds.width) -gt ($desktop.x+$desktop.width) -or
-        ($bounds.y+$bounds.height) -gt ($desktop.y+$desktop.height)) { throw 'Failure dialog is outside bounded visible desktop capture.' }
+    if ($bounds.width -gt 2048 -or $bounds.height -gt 2048 -or ($bounds.width*$bounds.height) -gt 2097152) {
+        throw 'Failure dialog exceeds bounded diagnostic dimensions.'
+    }
+    # A clipped dialog can be the cause of failure. Capture only its visible
+    # intersection; full window bounds remain recorded and never imply acceptance.
+    $left=[Math]::Max($bounds.x,$desktop.x); $top=[Math]::Max($bounds.y,$desktop.y)
+    $right=[Math]::Min($bounds.x+$bounds.width,$desktop.x+$desktop.width)
+    $bottom=[Math]::Min($bounds.y+$bounds.height,$desktop.y+$desktop.height)
+    if ($right -le $left -or $bottom -le $top) { throw 'Failure dialog has no visible desktop intersection.' }
+    return @{x=$left;y=$top;width=($right-$left);height=($bottom-$top)}
 }
 
 function Invoke-DayQuayFailureCapture([int]$ProcessId, [int64]$WindowHandle, [string]$Title, [Collections.IDictionary]$Operations, [Collections.IDictionary]$Evidence) {
     $Evidence.before=& $Operations.Observe
-    Assert-DayQuayFailureCaptureSnapshot $Evidence.before $ProcessId $WindowHandle $Title
-    [byte[]]$bytes=& $Operations.Capture $Evidence.before.bounds
+    $Evidence.capture_bounds=Assert-DayQuayFailureCaptureSnapshot $Evidence.before $ProcessId $WindowHandle $Title
+    $Evidence.fully_visible=($Evidence.capture_bounds.width -eq $Evidence.before.bounds.width -and
+        $Evidence.capture_bounds.height -eq $Evidence.before.bounds.height)
+    [byte[]]$bytes=& $Operations.Capture $Evidence.capture_bounds
     if (-not $bytes.Length -or $bytes.Length -gt 1000000) { throw 'Failure screenshot exceeds the bounded PNG evidence size.' }
     $Evidence.after=& $Operations.Observe
-    Assert-DayQuayFailureCaptureSnapshot $Evidence.after $ProcessId $WindowHandle $Title
+    $afterCaptureBounds=Assert-DayQuayFailureCaptureSnapshot $Evidence.after $ProcessId $WindowHandle $Title
     foreach($field in @('x','y','width','height')) {
         if ($Evidence.before.bounds.$field -ne $Evidence.after.bounds.$field) { throw 'Failure dialog moved during screenshot capture.' }
+        if ($Evidence.before.virtual_screen.$field -ne $Evidence.after.virtual_screen.$field -or
+            $Evidence.capture_bounds.$field -ne $afterCaptureBounds.$field) { throw 'Visible desktop changed during failure capture.' }
     }
     return ,$bytes
 }
