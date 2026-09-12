@@ -43,7 +43,7 @@ def verify_checkout(source, commit, reviewed):
                               text=True, timeout=30).stdout.strip()
     require(git("rev-parse", "HEAD") == commit and not git("status", "--porcelain", "--untracked-files=all"),
             "Store export requires the unchanged committed source checkout")
-    return git("rev-parse", "HEAD^{tree}")
+    return git("show", "-s", "--format=%T", "HEAD")
 
 
 def remove_owned_export(output, identity, expected):

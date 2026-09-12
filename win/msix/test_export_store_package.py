@@ -61,7 +61,7 @@ class StoreExportTests(unittest.TestCase):
         self.git('-c', 'user.name=Qualification fixture', '-c', 'user.email=fixture@example.invalid',
                  'commit', '-qm', 'Source boundary fixture')
         f.commit = self.git('rev-parse', 'HEAD')
-        self.tree = self.git('rev-parse', 'HEAD^{tree}')
+        self.tree = self.git('show', '-s', '--format=%T', 'HEAD')
         f.refresh_evidence()
         self.native = json.loads(f.startup.read_bytes())
         self.native.update(workflow_run_id='12345', workflow_run_attempt='1')
@@ -113,8 +113,11 @@ class StoreExportTests(unittest.TestCase):
         self.output = f.evidence / 'store-export'
 
     def git(self, *args):
-        return subprocess.run(['git', '-C', str(self.f.source), *args], check=True,
-                              capture_output=True, text=True).stdout.strip()
+        result = subprocess.run(['git', '-C', str(self.f.source), *args],
+                                capture_output=True, text=True)
+        if result.returncode:
+            self.fail(f'Git fixture command {args!r} failed: {result.stderr}')
+        return result.stdout.strip()
 
     def write(self, relative, data):
         target = self.f.source / relative
