@@ -59,6 +59,19 @@ def run_capture(ui,original,journal,archive,parent,restore_name,day):
                 original_after_restore=protected,backup_after_restore=backup_after,restored_title=title)
 
 
+def journal_diagnostics(original,journal):
+    """Read bounded fictional capture files only; this never grants acceptance."""
+    files=original._regular_tree(journal)
+    if len(files)!=1:raise ValueError('Expected one exclusive fictional month file')
+    name,record=next(iter(files.items()))
+    if '/' in name or not original.MONTH_NAME.fullmatch(name) or record['bytes']>65536:
+        raise ValueError('Fictional journal diagnostic exceeds its month/size scope')
+    text=record['content'].decode('utf-8')
+    return dict(filename=name,bytes=record['bytes'],sha256=record['sha256'],
+        required_text_counts={s:text.count(s) for s in (SENTINEL,MARKER,'#weekend #ideas #gratitude')},
+        fictional_saved_text=text[:4096],text_truncated=len(text)>4096)
+
+
 def ui_class(original,args,captures,frame):
     class UI(original._WindowsInput):
         VK=dict(original._WindowsInput.VK,HOME=0x24)
@@ -100,7 +113,12 @@ def main():
         result.update(process_id=args.process_id,main_window_handle=args.main_window_handle,captures=captures)
         original._write_json_exclusive(args.output/'journal-capture.json',result)
     except Exception as error:
-        original._write_json_exclusive(args.output/'journal-capture-failure.json',dict(captured=False,consumer_acceptance=False,error=str(error),native=ui.failure_diagnostics()))
+        failure=dict(captured=False,consumer_acceptance=False,error=str(error),native=ui.failure_diagnostics())
+        try:failure['fictional_journal']=journal_diagnostics(original,args.profile_root/'data')
+        except Exception as diagnostic:failure['journal_diagnostic_error']=str(diagnostic)
+        try:ui.capture('failure-window')
+        except Exception as diagnostic:failure['screenshot_diagnostic_error']=str(diagnostic)
+        original._write_json_exclusive(args.output/'journal-capture-failure.json',failure)
         raise
     finally:ui.close()
 
