@@ -7,6 +7,7 @@ import unittest
 import zipfile
 import sys
 from types import SimpleNamespace
+from unittest import mock
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'msix'))
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from rednotebook.data import Month
@@ -41,8 +42,10 @@ class CaptureUITests(unittest.TestCase):
             root=Path(t).resolve();journal=root/'data';journal.mkdir();archive=root/'Autumn-journal.zip';calls=[]
             class UI:
                 current_title='Jotmorrow - Saturday, 9/12/2026'
-                def replace_editor_text(self,text):self.text=text;calls.append('type')
-                def save(self):save_real_month(journal,self.text);calls.append('save')
+                def replace_editor_text(self,text):
+                    self.month=Month(2026,9,{12:{'text':text}});self.month.edited=True;self.save_results=[];calls.append('type')
+                def save(self):
+                    self.save_results.append(storage.save_months_to_disk({'2026-09':self.month},str(journal)));calls.append('save')
                 def show_top(self):calls.append('show-top')
                 def capture(self,name):calls.append(name)
                 def create_backup(self,path):
@@ -54,11 +57,40 @@ class CaptureUITests(unittest.TestCase):
                     calls.append('02-restore-preview');out=parent/name;out.mkdir()
                     with zipfile.ZipFile(path) as z:(out/'2026-09.txt').write_bytes(z.read('2026-09.txt'))
                     self.current_title=title;calls.append('restore')
-            result=capture.run_capture(UI(),original,journal,archive,root,'RestoredJournal',datetime.date(2026,9,12))
-            self.assertEqual(calls,['type','save','show-top','01-journal-entry','backup','02-restore-preview','restore','show-top','03-restored-journal'])
+            ui=UI();result=capture.run_capture(ui,original,journal,archive,root,'RestoredJournal',datetime.date(2026,9,12))
+            self.assertEqual(ui.save_results,[True,False])
+            self.assertEqual(calls,['type','save','save','show-top','01-journal-entry','backup','02-restore-preview','restore','show-top','03-restored-journal'])
             self.assertEqual(result['saved']['files'],result['restored']['files'])
             self.assertEqual(result['backup'],result['backup_after_restore'])
             self.assertFalse(result['consumer_acceptance'])
+
+    def test_status_save_follows_persisted_proof_and_cannot_change_journal(self):
+        for changed in (False,True):
+            with self.subTest(changed=changed),tempfile.TemporaryDirectory() as t:
+                root=Path(t).resolve();journal=root/'data';journal.mkdir();calls=[]
+                class UI:
+                    current_title='Jotmorrow - Saturday, 9/12/2026'
+                    def replace_editor_text(self,text):
+                        self.month=Month(2026,9,{12:{'text':text}});self.month.edited=True
+                    def save(self):
+                        calls.append('save')
+                        if calls.count('save')==2:
+                            if 'persisted' not in calls:raise AssertionError('Second Save preceded persisted-byte proof')
+                            if changed:(journal/'2026-09.txt').write_text('unexpected changed bytes')
+                        storage.save_months_to_disk({'2026-09':self.month},str(journal))
+                    def show_top(self):calls.append('show-top')
+                    def capture(self,name):calls.append('capture');raise RuntimeError('first image reached')
+                real_capture=original.capture_journal
+                def proof(*args,**kwargs):
+                    result=real_capture(*args,**kwargs);calls.append('persisted');return result
+                with mock.patch.object(original,'capture_journal',side_effect=proof):
+                    if changed:
+                        with self.assertRaises(ValueError):capture.run_capture(UI(),original,journal,root/'a.zip',root,'RestoredJournal',datetime.date(2026,9,12))
+                        self.assertEqual(calls,['save','persisted','save'])
+                    else:
+                        with self.assertRaisesRegex(RuntimeError,'first image reached'):
+                            capture.run_capture(UI(),original,journal,root/'a.zip',root,'RestoredJournal',datetime.date(2026,9,12))
+                        self.assertEqual(calls,['save','persisted','save','persisted','show-top','capture'])
 
     def test_backup_failure_does_not_reach_restore_or_later_screens(self):
         self.assertIsNotNone(capture)

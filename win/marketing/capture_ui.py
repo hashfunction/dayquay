@@ -44,6 +44,9 @@ def run_capture(ui,original,journal,archive,parent,restore_name,day):
     text=entry(day)
     ui.replace_editor_text(text);ui.save()
     saved=original._eventually(lambda:original.capture_journal(journal,SENTINEL,(MARKER,'#weekend #ideas #gratitude')),'saved original marketing entry')
+    # Ordinary Save on the verified, unchanged month shows the real 'Nothing to save' status.
+    ui.save()
+    original.verify_protected_journal(journal,SENTINEL,MARKER,saved)
     ui.show_top();ui.capture('01-journal-entry')
     ui.create_backup(archive)
     backup=original._eventually(lambda:original.verify_backup(archive,saved),'actual portable backup')
