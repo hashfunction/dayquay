@@ -64,6 +64,7 @@ jobs:
           python win/msix/test_msix_qualification.py -v
           python win/msix/test_native_notices.py -v
           python win/msix/test_installed_workflow.py -v
+          python win/msix/test_gtk_chooser_diagnostic.py -v
       - name: Test qualification ownership and failure evidence
         shell: pwsh
         run: |
@@ -82,9 +83,14 @@ jobs:
         shell: pwsh
         run: ./win/test-native-startup.ps1
       - name: Qualify disposable MSIX package, identity, GTK startup and owned cleanup
+        id: msix_qualification
         shell: pwsh
         timeout-minutes: 10
         run: ./win/msix/qualify-msix.ps1
+      - name: Diagnose standalone GTK chooser after installed qualification failure
+        if: failure() && steps.msix_qualification.outcome == 'failure'
+        timeout-minutes: 3
+        run: python win/msix/gtk_chooser_diagnostic.py --glade rednotebook/files/main_window.glade --output build-evidence/gtk-chooser-diagnostic.json
       - name: Preserve qualification metadata only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
