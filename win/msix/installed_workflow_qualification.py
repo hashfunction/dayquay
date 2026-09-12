@@ -656,6 +656,10 @@ class _WindowsInput:
         self._record_diagnostic_step("dialog_foreground")
         self.chord("CTRL", "L")
         self._record_diagnostic_step("after_ctrl_l")
+        # GTK's SAVE chooser selects the filename stem, leaving its extension.
+        # Replace the whole location/name so a prefilled .zip cannot be appended.
+        self.chord("CTRL", "A")
+        self._record_diagnostic_step("after_ctrl_a")
         self.text(input_text)
         self._record_diagnostic_step("after_path_text")
         self.press("ENTER")

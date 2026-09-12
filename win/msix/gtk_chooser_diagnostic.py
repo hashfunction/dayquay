@@ -5,6 +5,7 @@ the direct activate_default comparison is confined to this standalone process.
 """
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -32,11 +33,13 @@ def chooser_target(path, path_style):
     raise ValueError("unknown chooser diagnostic path spelling")
 
 
-def chooser_xml(glade):
+def chooser_xml(glade, chooser_id="dir_chooser"):
+    if chooser_id not in ("dir_chooser", "backup_dialog"):
+        raise ValueError("unknown diagnostic chooser")
     document = ET.parse(glade).getroot()
-    matches = document.findall("object[@id='dir_chooser']")
+    matches = document.findall(f"object[@id='{chooser_id}']")
     if len(matches) != 1 or matches[0].get("class") != "GtkFileChooserDialog":
-        raise ValueError("actual Glade does not contain one directory chooser")
+        raise ValueError("actual Glade does not contain one requested chooser")
     interface = ET.Element("interface")
     ET.SubElement(interface, "requires", {"lib": "gtk+", "version": "3.10"})
     interface.append(matches[0])
@@ -107,22 +110,34 @@ def dispatch_action(native, hwnd, title, action, activate_default):
         return activate_default()
 
 
-def run_case(Gtk, Gdk, GLib, glade, parent_folder, action, path_style):
-    target = chooser_target(parent_folder / "ReopenProbe", path_style)
+def run_case(Gtk, Gdk, GLib, glade, parent_folder, action, path_style,
+             chooser_id="dir_chooser", select_all=False):
+    saving = chooser_id == "backup_dialog"
+    target_name = "DayQuay-consumer-backup.zip" if saving else "ReopenProbe"
+    target = chooser_target(parent_folder / target_name, path_style)
     builder = Gtk.Builder()
-    builder.add_from_string(chooser_xml(glade))
-    dialog = builder.get_object("dir_chooser")
-    button = builder.get_object("button17")
+    builder.add_from_string(chooser_xml(glade, chooser_id))
+    dialog = builder.get_object(chooser_id)
+    button = builder.get_object("button1" if saving else "button17")
     parent = Gtk.Window(title="DayQuay standalone chooser diagnostic")
     parent.set_default_size(992, 696)
     parent.show_all()
     dialog.set_transient_for(parent)
     dialog.set_current_folder(str(parent_folder))
+    if saving:
+        # Match Backup._get_backup_file for the default "data" journal.
+        dialog.set_current_name(f"DayQuay-Backup-{datetime.date.today()}.zip")
+        dialog.set_do_overwrite_confirmation(False)
+        archive_filter = Gtk.FileFilter()
+        archive_filter.set_name("Zip")
+        archive_filter.add_pattern("*.zip")
+        dialog.add_filter(archive_filter)
     title = dialog.get_title()
     loop = GLib.MainLoop()
     responded = threading.Event()
     record = {
         "action": action, "path_style": path_style, "target": target,
+        "chooser_id": chooser_id, "select_all": select_all,
         "events": [], "dropped_events": 0,
     }
     hooked = set()
@@ -147,7 +162,8 @@ def run_case(Gtk, Gdk, GLib, glade, parent_folder, action, path_style):
             "is_ok_button": widget == button,
         }
         if isinstance(widget, Gtk.Entry):
-            state.update(text=widget.get_text()[:4096], activates_default=widget.get_activates_default())
+            state.update(text=widget.get_text()[:4096], activates_default=widget.get_activates_default(),
+                         selection=list(widget.get_selection_bounds()), cursor_position=widget.get_position())
         if isinstance(widget, Gtk.Button):
             state["label"] = widget.get_label()
         return state
@@ -159,6 +175,7 @@ def run_case(Gtk, Gdk, GLib, glade, parent_folder, action, path_style):
             "ok_response_widget": widget_state(dialog.get_widget_for_response(Gtk.ResponseType.OK)),
             "selected_path": dialog.get_filename(),
             "current_folder": dialog.get_current_folder(),
+            "current_name": dialog.get_current_name() if saving else None,
             "dialog_visible": dialog.get_visible(),
             "action": int(dialog.get_action()),
         }
@@ -228,6 +245,10 @@ def run_case(Gtk, Gdk, GLib, glade, parent_folder, action, path_style):
             native.chord("CTRL", "L")
             # Ctrl+L can create the location entry after the initial tree walk.
             main_call(lambda: hook(dialog.get_focus()) if dialog.get_focus() else None)
+            record["after_ctrl_l"] = main_call(snapshot)
+            if select_all:
+                native.chord("CTRL", "A")
+                record["after_ctrl_a"] = main_call(snapshot)
             native.text(target)
             record["before_action"] = main_call(snapshot)
             record["native_before_action"] = native._observe_diagnostic_state()
@@ -237,6 +258,10 @@ def run_case(Gtk, Gdk, GLib, glade, parent_folder, action, path_style):
             )
             record["response_observed"] = responded.wait(6)
             record["after_action"] = main_call(snapshot)
+            selected = record["after_action"]["selected_path"]
+            record["selected_path_matches_target"] = bool(selected) and (
+                os.path.normcase(os.path.normpath(selected)) == os.path.normcase(os.path.normpath(target))
+            )
             record["native_after_action"] = native._observe_diagnostic_state()
         except Exception as exc:
             record["probe_error"] = f"{type(exc).__name__}: {exc}"[:2048]
@@ -286,6 +311,9 @@ def main():
         receipt["chooser_subtree_sha256"] = hashlib.sha256(
             chooser_xml(args.glade).encode("utf-8")
         ).hexdigest()
+        receipt["save_chooser_subtree_sha256"] = hashlib.sha256(
+            chooser_xml(args.glade, "backup_dialog").encode("utf-8")
+        ).hexdigest()
         receipt["input_helper_sha256"] = hashlib.sha256(
             Path(__file__).with_name("installed_workflow_qualification.py").read_bytes()
         ).hexdigest()
@@ -296,6 +324,14 @@ def main():
                 receipt["cases"].append(run_case(
                     Gtk, Gdk, GLib, args.glade, root / "DayQuay", action, path_style,
                 ))
+        # Compare the original SAVE sequence with full selection, using the
+        # actual backup Glade and retained-process native input. No files are
+        # created by this standalone chooser and it cannot qualify the app.
+        for select_all in (False, True):
+            receipt["cases"].append(run_case(
+                Gtk, Gdk, GLib, args.glade, root / "DayQuay", "enter", "native",
+                chooser_id="backup_dialog", select_all=select_all,
+            ))
     except Exception as exc:
         receipt["probe_error"] = f"{type(exc).__name__}: {exc}"[:2048]
     finally:

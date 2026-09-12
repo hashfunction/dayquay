@@ -346,13 +346,13 @@ class InstalledWorkflowTests(unittest.TestCase):
         with mock.patch.object(workflow.time, "sleep"):
             with self.assertRaisesRegex(ValueError, "chooser stayed open"):
                 native._select_path("Select a directory", self.reopen_probe, "O")
-        self.assertEqual(native.chord.call_args_list, [mock.call("CTRL", "L"), mock.call("ALT", "O")])
+        self.assertEqual(native.chord.call_args_list, [mock.call("CTRL", "L"), mock.call("CTRL", "A"), mock.call("ALT", "O")])
         native.text.assert_called_once_with(str(self.reopen_probe).replace("/", "\\"))
         native.press.assert_called_once_with("ENTER")
         self.assertEqual(native._path_selection["path"], str(self.reopen_probe))
         self.assertTrue(native._path_selection["is_directory"])
         self.assertEqual([row["step"] for row in native._diagnostic_trace], [
-            "dialog_foreground", "after_ctrl_l", "after_path_text", "after_enter", "after_accept_key",
+            "dialog_foreground", "after_ctrl_l", "after_ctrl_a", "after_path_text", "after_enter", "after_accept_key",
         ])
         self.assertEqual(native._diagnostic_trace[-1]["state"]["focus"]["hwnd"], 17)
 
@@ -379,12 +379,47 @@ class InstalledWorkflowTests(unittest.TestCase):
                     mock.call.wait_window("Select a directory"),
                     mock.call.foreground(17, "Select a directory"),
                     mock.call.chord("CTRL", "L"),
+                    mock.call.chord("CTRL", "A"),
                     mock.call.text(expected),
                     mock.call.press("ENTER"),
                     mock.call.wait_window("Select a directory", present=False),
                 ])
                 self.assertEqual(native._path_selection["path"], supplied)
                 self.assertEqual(native._path_selection["input_text"], expected)
+
+    def test_save_chooser_replaces_extension_as_well_as_prefilled_name(self):
+        # GTK's SAVE focus handler selects only the stem of this default name.
+        # Preserve that real boundary behavior instead of starting with an empty entry.
+        entry = {"text": "DayQuay-Backup-2026-09-12.zip", "selection": (0, 25)}
+        native = object.__new__(workflow._WindowsInput)
+        native._wait_window = mock.Mock(side_effect=[17, None])
+        native._foreground = mock.Mock()
+        native._owned_windows = lambda: []
+        native._observe_diagnostic_state = lambda: {}
+        native.press = mock.Mock()
+        def chord(*keys):
+            if keys == ("CTRL", "A"):
+                entry["selection"] = (0, len(entry["text"]))
+        def text(value):
+            start, end = entry["selection"]
+            entry["text"] = entry["text"][:start] + value + entry["text"][end:]
+        native.chord, native.text = chord, text
+        with mock.patch.object(workflow.time, "sleep"):
+            native._select_path("Select backup filename", "D:/owned/DayQuay-consumer-backup.zip", "S")
+        self.assertEqual(entry["text"], r"D:\owned\DayQuay-consumer-backup.zip")
+
+    def test_select_all_ownership_refusal_prevents_filename_input(self):
+        native = object.__new__(workflow._WindowsInput)
+        native._wait_window = mock.Mock(return_value=17)
+        native._foreground = mock.Mock()
+        native._observe_diagnostic_state = lambda: {}
+        native._owned_windows = lambda: []
+        native.chord = mock.Mock(side_effect=[None, ValueError("ownership changed before select-all")])
+        native.text, native.press = mock.Mock(), mock.Mock()
+        with self.assertRaisesRegex(ValueError, "ownership changed"):
+            native._select_path("Select backup filename", "D:/owned/backup.zip", "S")
+        native.text.assert_not_called()
+        native.press.assert_not_called()
 
     def test_chooser_foreground_refusal_prevents_path_and_key_input(self):
         native = object.__new__(workflow._WindowsInput)
@@ -422,7 +457,7 @@ class InstalledWorkflowTests(unittest.TestCase):
         native.press = mock.Mock()
         with mock.patch.object(workflow.time, "sleep"):
             native._select_path("Select a directory", self.reopen_probe, "O")
-        native.chord.assert_called_once_with("CTRL", "L")
+        self.assertEqual(native.chord.call_args_list, [mock.call("CTRL", "L"), mock.call("CTRL", "A")])
         native.text.assert_called_once_with(str(self.reopen_probe).replace("/", "\\"))
         native.press.assert_called_once_with("ENTER")
         self.assertEqual(native._diagnostic_trace[-1]["state"], {"observation_error": "focus unavailable"})

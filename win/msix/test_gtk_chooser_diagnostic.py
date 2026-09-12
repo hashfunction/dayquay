@@ -81,6 +81,16 @@ class ChooserDiagnosticTests(unittest.TestCase):
         )
         self.assertNotIn("GtkSourceView", diagnostic.chooser_xml(glade))
 
+    def test_save_probe_preserves_actual_backup_dialog_and_response(self):
+        glade = Path(__file__).resolve().parents[2] / "rednotebook/files/main_window.glade"
+        actual = ET.parse(glade).getroot().find("object[@id='backup_dialog']")
+        selected = ET.fromstring(diagnostic.chooser_xml(glade, "backup_dialog"))
+        self.assertEqual(len(selected.findall("object")), 1)
+        self.assertEqual(ET.tostring(selected.find("object")), ET.tostring(actual))
+        self.assertEqual(selected.find("object/property[@name='action']").text, "save")
+        with self.assertRaisesRegex(ValueError, "chooser"):
+            diagnostic.chooser_xml(glade, "main_window")
+
     def test_native_and_direct_cases_have_distinct_actions(self):
         for action, expected in (
             ("enter", [mock.call._foreground(17, "chooser"), mock.call.press("ENTER")]),
