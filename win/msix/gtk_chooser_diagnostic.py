@@ -58,7 +58,25 @@ def remove_probe_tree(root, token):
         or set(parent.iterdir()) != {probe}
         or any(probe.iterdir())
     ):
-        raise ValueError("probe cleanup found unexpected entries")
+        details = {}
+        try:
+            for label, directory, expected in (
+                ("root", root, {marker, parent}),
+                ("parent", parent, {probe}),
+                ("probe", probe, set()),
+            ):
+                observed = set(directory.iterdir())
+                details[label] = {
+                    "directory": str(directory)[:1024],
+                    "path_type": type(directory).__name__,
+                    "expected": sorted(str(p)[:1024] for p in expected),
+                    "observed": sorted(str(p)[:1024] for p in observed)[:16],
+                    "observed_count": len(observed),
+                    "equal": observed == expected,
+                }
+        except Exception as error:
+            details["observation_error"] = str(error)[:1024]
+        raise ValueError("probe cleanup found unexpected entries: " + json.dumps(details))
     probe.rmdir()
     parent.rmdir()
     marker.unlink()
